@@ -1,0 +1,983 @@
+openapi: 3.0.3
+info:
+  title: NavBlind API
+  description: |
+    시각장애인용 스마트글래스 네비게이션 시스템 백엔드 API.
+
+    ## 인증
+    모든 인증된 엔드포인트는 `Authorization: Bearer <token>` 헤더가 필요합니다.
+    Firebase ID 토큰을 사용하여 인증합니다.
+  version: 1.0.0
+  contact:
+    name: NavBlind Team
+
+servers:
+  - url: https://api.navblind.com/v1
+    description: Production server
+  - url: http://localhost:8080/v1
+    description: Local development
+
+tags:
+  - name: Auth
+    description: 인증 관련 API
+  - name: User
+    description: 사용자 정보 관리
+  - name: Navigation
+    description: 경로 탐색 및 안내
+  - name: Destination
+    description: 저장된 목적지 관리
+  - name: Device
+    description: 스마트글래스 디바이스 관리
+
+paths:
+  # ==================== Auth ====================
+  /auth/verify:
+    post:
+      tags: [Auth]
+      summary: Firebase 토큰 검증 및 세션 생성
+      description: Firebase ID 토큰을 검증하고 서버 세션을 생성합니다.
+      operationId: verifyToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyTokenRequest'
+      responses:
+        '200':
+          description: 인증 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: 유효하지 않은 토큰
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: 세션 갱신
+      operationId: refreshSession
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 세션 갱신 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: 세션 만료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== User ====================
+  /users/me:
+    get:
+      tags: [User]
+      summary: 현재 사용자 정보 조회
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 사용자 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      tags: [User]
+      summary: 사용자 정보 수정
+      operationId: updateCurrentUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/me/preferences:
+    get:
+      tags: [User]
+      summary: 사용자 설정 조회
+      operationId: getUserPreferences
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 설정 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferencesResponse'
+
+    put:
+      tags: [User]
+      summary: 사용자 설정 저장
+      operationId: updateUserPreferences
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePreferencesRequest'
+      responses:
+        '200':
+          description: 설정 저장 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferencesResponse'
+
+  # ==================== Navigation ====================
+  /navigation/route:
+    post:
+      tags: [Navigation]
+      summary: 경로 탐색
+      description: 출발지에서 목적지까지의 보행자 경로를 계산합니다.
+      operationId: calculateRoute
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+      responses:
+        '200':
+          description: 경로 계산 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteResponse'
+        '400':
+          description: 잘못된 좌표
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 경로를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /navigation/reroute:
+    post:
+      tags: [Navigation]
+      summary: 경로 재탐색
+      description: 현재 위치에서 목적지까지 새로운 경로를 계산합니다.
+      operationId: recalculateRoute
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RerouteRequest'
+      responses:
+        '200':
+          description: 재탐색 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteResponse'
+        '404':
+          description: 경로를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /navigation/sessions:
+    get:
+      tags: [Navigation]
+      summary: 네비게이션 이력 조회
+      operationId: getNavigationHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: 이력 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NavigationHistoryResponse'
+
+  /navigation/sessions/{sessionId}:
+    patch:
+      tags: [Navigation]
+      summary: 네비게이션 세션 상태 업데이트
+      description: 세션 완료, 취소 등 상태 변경
+      operationId: updateNavigationSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSessionRequest'
+      responses:
+        '200':
+          description: 업데이트 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NavigationSessionResponse'
+        '404':
+          description: 세션을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== Destination ====================
+  /destinations:
+    get:
+      tags: [Destination]
+      summary: 저장된 목적지 목록 조회
+      operationId: getDestinations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: label
+          in: query
+          description: 레이블로 필터링 (집, 회사 등)
+          schema:
+            type: string
+        - name: sort
+          in: query
+          description: 정렬 기준
+          schema:
+            type: string
+            enum: [name, useCount, createdAt]
+            default: useCount
+      responses:
+        '200':
+          description: 목적지 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationsResponse'
+
+    post:
+      tags: [Destination]
+      summary: 새 목적지 저장
+      operationId: createDestination
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDestinationRequest'
+      responses:
+        '201':
+          description: 목적지 생성됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationResponse'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /destinations/{destinationId}:
+    get:
+      tags: [Destination]
+      summary: 목적지 상세 조회
+      operationId: getDestination
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: destinationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 목적지 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationResponse'
+        '404':
+          description: 목적지를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      tags: [Destination]
+      summary: 목적지 수정
+      operationId: updateDestination
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: destinationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDestinationRequest'
+      responses:
+        '200':
+          description: 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationResponse'
+
+    delete:
+      tags: [Destination]
+      summary: 목적지 삭제
+      operationId: deleteDestination
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: destinationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+        '404':
+          description: 목적지를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /destinations/search:
+    get:
+      tags: [Destination]
+      summary: 목적지 검색 (OSM 기반)
+      description: OpenStreetMap 데이터에서 장소를 검색합니다.
+      operationId: searchDestination
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: 검색어
+          schema:
+            type: string
+            minLength: 2
+        - name: lat
+          in: query
+          description: 현재 위치 위도 (가까운 결과 우선)
+          schema:
+            type: number
+            format: double
+        - name: lng
+          in: query
+          description: 현재 위치 경도
+          schema:
+            type: number
+            format: double
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        '200':
+          description: 검색 결과
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchDestinationsResponse'
+
+  # ==================== Device ====================
+  /devices:
+    get:
+      tags: [Device]
+      summary: 등록된 스마트글래스 목록
+      operationId: getDevices
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 디바이스 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevicesResponse'
+
+    post:
+      tags: [Device]
+      summary: 스마트글래스 등록
+      operationId: registerDevice
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDeviceRequest'
+      responses:
+        '201':
+          description: 등록 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '400':
+          description: 잘못된 요청 또는 디바이스 수 초과
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /devices/{deviceId}:
+    delete:
+      tags: [Device]
+      summary: 스마트글래스 등록 해제
+      operationId: unregisterDevice
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+        '404':
+          description: 디바이스를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== OSM Data ====================
+  /osm/tiles/{z}/{x}/{y}:
+    get:
+      tags: [Navigation]
+      summary: OSM 타일 데이터 조회
+      description: 오프라인 사용을 위한 OSM 벡터 타일
+      operationId: getOsmTile
+      parameters:
+        - name: z
+          in: path
+          required: true
+          description: 줌 레벨
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 19
+        - name: x
+          in: path
+          required: true
+          description: 타일 X 좌표
+          schema:
+            type: integer
+        - name: y
+          in: path
+          required: true
+          description: 타일 Y 좌표
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 타일 데이터
+          content:
+            application/x-protobuf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: 타일을 찾을 수 없음
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase ID Token
+
+  schemas:
+    # ===== Auth =====
+    VerifyTokenRequest:
+      type: object
+      required: [firebaseToken]
+      properties:
+        firebaseToken:
+          type: string
+          description: Firebase ID 토큰
+
+    AuthResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        accessToken:
+          type: string
+          description: 서버 세션 토큰
+        expiresAt:
+          type: string
+          format: date-time
+        isNewUser:
+          type: boolean
+
+    # ===== User =====
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        phoneNumber:
+          type: string
+          example: "010-1234-5678"
+        displayName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        lastLogin:
+          type: string
+          format: date-time
+          nullable: true
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          maxLength: 100
+
+    PreferencesResponse:
+      type: object
+      properties:
+        avoidStairs:
+          type: boolean
+          default: false
+        preferCrosswalkSignals:
+          type: boolean
+          default: true
+        voiceSpeed:
+          type: string
+          enum: [slow, normal, fast]
+          default: normal
+        alertDistance:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+          description: 장애물 경고 거리 (미터)
+        vibrationEnabled:
+          type: boolean
+          default: true
+
+    UpdatePreferencesRequest:
+      type: object
+      properties:
+        avoidStairs:
+          type: boolean
+        preferCrosswalkSignals:
+          type: boolean
+        voiceSpeed:
+          type: string
+          enum: [slow, normal, fast]
+        alertDistance:
+          type: integer
+          minimum: 1
+          maximum: 20
+        vibrationEnabled:
+          type: boolean
+
+    # ===== Navigation =====
+    RouteRequest:
+      type: object
+      required: [originLat, originLng, destLat, destLng]
+      properties:
+        originLat:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        originLng:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        destLat:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        destLng:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        destName:
+          type: string
+          description: 목적지 이름 (표시용)
+        usePreferences:
+          type: boolean
+          default: true
+          description: 사용자 경로 설정 적용 여부
+
+    RerouteRequest:
+      type: object
+      required: [sessionId, currentLat, currentLng]
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        currentLat:
+          type: number
+          format: double
+        currentLng:
+          type: number
+          format: double
+
+    RouteResponse:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        distance:
+          type: integer
+          description: 총 거리 (미터)
+        duration:
+          type: integer
+          description: 예상 소요 시간 (초)
+        waypoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Waypoint'
+        instructions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Instruction'
+
+    Waypoint:
+      type: object
+      properties:
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        name:
+          type: string
+          nullable: true
+
+    Instruction:
+      type: object
+      properties:
+        step:
+          type: integer
+          description: 단계 번호
+        type:
+          type: string
+          enum: [depart, turn, arrive, continue, crosswalk]
+        modifier:
+          type: string
+          enum: [left, right, straight, slight_left, slight_right, uturn]
+          nullable: true
+        text:
+          type: string
+          description: 한국어 안내 메시지
+          example: "10미터 앞에서 좌회전하세요"
+        distance:
+          type: integer
+          description: 이 구간 거리 (미터)
+        location:
+          $ref: '#/components/schemas/Waypoint'
+
+    NavigationHistoryResponse:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/NavigationSessionResponse'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    NavigationSessionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        destName:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, COMPLETED, CANCELLED, FAILED]
+        distance:
+          type: integer
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        rerouteCount:
+          type: integer
+
+    UpdateSessionRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [COMPLETED, CANCELLED]
+
+    # ===== Destination =====
+    DestinationsResponse:
+      type: object
+      properties:
+        destinations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DestinationResponse'
+
+    DestinationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        address:
+          type: string
+          nullable: true
+        label:
+          type: string
+          nullable: true
+        useCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateDestinationRequest:
+      type: object
+      required: [name, latitude, longitude]
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        address:
+          type: string
+          maxLength: 500
+        label:
+          type: string
+          maxLength: 50
+          description: 레이블 (집, 회사, 병원 등)
+
+    UpdateDestinationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        label:
+          type: string
+          maxLength: 50
+
+    SearchDestinationsResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+
+    SearchResult:
+      type: object
+      properties:
+        name:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        address:
+          type: string
+          nullable: true
+        distance:
+          type: integer
+          nullable: true
+          description: 현재 위치로부터의 거리 (미터)
+        category:
+          type: string
+          nullable: true
+          description: POI 카테고리
+
+    # ===== Device =====
+    DevicesResponse:
+      type: object
+      properties:
+        devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceResponse'
+        maxDevices:
+          type: integer
+          description: 최대 등록 가능 디바이스 수
+
+    DeviceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        deviceId:
+          type: string
+        name:
+          type: string
+        macAddress:
+          type: string
+          nullable: true
+        lastConnected:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    RegisterDeviceRequest:
+      type: object
+      required: [deviceId]
+      properties:
+        deviceId:
+          type: string
+          maxLength: 100
+          description: ESP32-CAM 고유 ID
+        name:
+          type: string
+          maxLength: 100
+          default: "Smart Glasses"
+        macAddress:
+          type: string
+          pattern: "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
+
+    # ===== Common =====
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: 에러 코드
+        message:
+          type: string
+          description: 에러 메시지
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
