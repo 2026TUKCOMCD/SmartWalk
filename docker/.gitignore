@@ -1,0 +1,9 @@
+# Docker volumes (if mounted locally)
+osrm_data/
+postgres_data/
+redis_data/
+
+# OSM data files (large)
+*.osm.pbf
+*.osrm
+*.osrm.*
