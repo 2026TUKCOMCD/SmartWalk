@@ -57,6 +57,7 @@ A navigation assistance system for visually impaired users comprising:
 - Nginx (reverse proxy, SSL termination)
 - Docker Compose (local development)
 - OSRM container (routing service)
+- Nominatim container (geocoding/search, self-hosted for no rate limits)
 - Redis container (caching)
 - PostgreSQL container (database)
 
