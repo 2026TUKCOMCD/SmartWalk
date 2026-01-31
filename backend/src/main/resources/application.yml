@@ -1,0 +1,72 @@
+spring:
+  application:
+    name: navblind-server
+
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:navblind}
+    username: ${DB_USERNAME:navblind}
+    password: ${DB_PASSWORD:navblind_dev}
+    driver-class-name: org.postgresql.Driver
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        "[format_sql]": true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Flyway Migration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /v1
+
+# OSRM Configuration
+osrm:
+  base-url: ${OSRM_BASE_URL:http://localhost:5000}
+  timeout: 10000
+
+# Nominatim Configuration (for geocoding/search)
+# Self-hosted via Docker for no rate limits (external API limited to 1 req/sec)
+nominatim:
+  base-url: ${NOMINATIM_BASE_URL:http://localhost:8088}
+  timeout: 5000
+
+# Firebase Configuration
+firebase:
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+  disabled: ${FIREBASE_DISABLED:true}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# Logging
+logging:
+  level:
+    "[com.navblind]": DEBUG
+    "[org.springframework.web]": INFO
+    "[org.hibernate.SQL]": DEBUG
