@@ -23,6 +23,7 @@ Auto-generated from feature plans. Last updated: 2026-01-30
 - **Database**: PostgreSQL 16
 - **Cache**: Redis 7
 - **Routing**: OSRM (self-hosted)
+- **Geocoding**: Nominatim (self-hosted, no rate limits)
 
 ### Smart Glasses (Firmware)
 - **Platform**: ESP32-CAM
@@ -57,7 +58,7 @@ backend/                    # Spring Boot server (Java)
 │   ├── repository/        # JPA repositories
 │   ├── entity/            # JPA entities
 │   ├── dto/               # DTOs
-│   └── integration/       # OSRM client
+│   └── integration/       # OSRM, Nominatim clients
 
 smartglass/                 # ESP32-CAM firmware (C++)
 ├── src/
