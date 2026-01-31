@@ -1,0 +1,46 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Build outputs
+build/
+out/
+target/
+dist/
+
+# Dependencies
+node_modules/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/google-services.json
+
+# Backend
+backend/target/
+backend/.mvn/repository/
+
+# Docker volumes
+docker/osrm_data/
+docker/postgres_data/
+docker/redis_data/
+
+# Secrets
+*.jks
+*.keystore
+*-credentials.json
+firebase-*.json
