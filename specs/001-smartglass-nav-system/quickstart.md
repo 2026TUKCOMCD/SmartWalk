@@ -49,6 +49,7 @@ Services started:
 - **PostgreSQL**: localhost:5432
 - **Redis**: localhost:6379
 - **OSRM**: localhost:5000
+- **Nominatim**: localhost:8088 (geocoding/search)
 - **Spring Boot API**: localhost:8080
 - **Nginx**: localhost:80/443
 
@@ -71,6 +72,9 @@ firebase:
 
 osrm:
   base-url: http://localhost:5000
+
+nominatim:
+  base-url: http://localhost:8088
 ```
 
 ### 2.3 Run Backend (Development)
@@ -244,6 +248,7 @@ Power on the ESP32-CAM module and verify Wi-Fi connection.
 |---------|----------|
 | Database connection failed | Check PostgreSQL container: `docker-compose logs postgres` |
 | OSRM returns no route | Verify OSM data loaded: `docker-compose logs osrm` |
+| Nominatim search fails | Check import completed: `docker-compose logs nominatim` (initial import ~30min) |
 | Redis connection refused | Ensure Redis container running: `docker ps` |
 
 ### Android Issues
