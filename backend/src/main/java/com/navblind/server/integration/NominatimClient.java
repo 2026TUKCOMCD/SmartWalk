@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -57,7 +58,7 @@ public class NominatimClient {
         try {
             WebClient webClient = webClientBuilder.build();
             List<Map<String, Object>> response = webClient.get()
-                    .uri(url)
+                    .uri(URI.create(url))
                     .header("User-Agent", "NavBlind/1.0")
                     .retrieve()
                     .bodyToMono(List.class)
@@ -102,7 +103,7 @@ public class NominatimClient {
 
         WebClient webClient = webClientBuilder.build();
         Mono<List> rawMono = webClient.get()
-                .uri(url)
+                .uri(URI.create(url))
                 .header("User-Agent", "NavBlind/1.0")
                 .retrieve()
                 .bodyToMono(List.class)
