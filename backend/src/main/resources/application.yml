@@ -12,7 +12,9 @@ spring:
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: validate
+      # 개발 단계: update (스키마 자동 업데이트)
+      # 운영 단계: validate (스키마 검증만)
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
