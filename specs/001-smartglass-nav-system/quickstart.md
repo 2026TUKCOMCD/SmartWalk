@@ -5,6 +5,7 @@
 ### Development Environment
 - **Java**: JDK 21
 - **Kotlin**: 1.9+
+- **Gradle**: 8.10+ (Android), 8.5+ (Backend)
 - **Android Studio**: Hedgehog (2023.1.1) or later
 - **Docker**: 24.0+ with Docker Compose
 - **PlatformIO**: For ESP32-CAM firmware development
