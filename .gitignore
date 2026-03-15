@@ -44,3 +44,5 @@ docker/redis_data/
 *.keystore
 *-credentials.json
 firebase-*.json
+
+sessions/

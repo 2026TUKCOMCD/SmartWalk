@@ -1,6 +1,7 @@
 package com.navblind.service.location
 
 import android.util.Log
+import com.navblind.BuildConfig
 import com.navblind.domain.model.Coordinate
 import com.navblind.domain.model.FusedPosition
 import com.navblind.domain.model.PositionSource
@@ -13,13 +14,25 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * GPS, FusedLocationProvider, ARCore Geospatial을 결합하여
- * 최적의 위치 정보를 제공하는 서비스입니다.
+ * GPS, FusedLocationProvider, ARCore Geospatial, IMU를 결합하여
+ * 최적의 위치 및 방위각 정보를 제공하는 서비스입니다.
+ *
+ * 위치 융합 (Kalman Filter + PDR):
+ * - GPS/FusedLocation: KF 보정 소스 (1Hz)
+ * - ARCore Geospatial (VPS): 도시 환경에서 추가 KF 보정
+ * - PDR: 걸음 감지마다 KF 예측 (~3~5Hz), GPS 주기 사이의 위치 갱신
+ *
+ * 방위각 융합:
+ * - VPS heading: 정확하지만 낮은 업데이트 빈도
+ * - IMU heading: 빠른 응답, drift 있음
+ * - Kalman Filter로 두 소스를 융합
  */
 @Singleton
 class LocationFusionService @Inject constructor(
     private val locationService: LocationService,
-    private val geospatialService: GeospatialService
+    private val geospatialService: GeospatialService,
+    private val headingFusionService: HeadingFusionService,
+    private val imuSensorService: IMUSensorService
 ) {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -37,8 +50,10 @@ class LocationFusionService @Inject constructor(
     val vpsPosition: StateFlow<FusedPosition?> = _vpsPosition.asStateFlow()
     // TODO: 데모 후 삭제 끝
 
-    private var lastGpsPosition: FusedPosition? = null
-    private var lastGeospatialPosition: FusedPosition? = null
+    private var lastFusedHeading: FusedHeadingData? = null
+
+    // Position Kalman Filter 인스턴스
+    private val positionKF = PositionKalmanFilter()
 
     /**
      * 위치 추적을 시작합니다.
@@ -54,26 +69,78 @@ class LocationFusionService @Inject constructor(
             locationService.getLocationUpdates()
                 .catch { e ->
                     Log.e(TAG, "Location updates error", e)
+                    // 권한 없음 등으로 실패 시 isTracking 리셋 → 권한 허용 후 재시도 가능
+                    _isTracking.value = false
                 }
                 .collect { position ->
-                    lastGpsPosition = position
                     _gpsPosition.value = position  // TODO: 데모 후 삭제
-                    updateFusedPosition()
+                    if (!positionKF.isInitialized) {
+                        positionKF.initialize(
+                            position.coordinate.latitude,
+                            position.coordinate.longitude
+                        )
+                    } else {
+                        positionKF.correct(
+                            position.coordinate.latitude,
+                            position.coordinate.longitude,
+                            position.accuracy
+                        )
+                    }
+                    emitKFPosition()
                 }
         }
 
         // ARCore Geospatial 초기화 시도
         if (geospatialService.checkAvailability()) {
-            geospatialService.initialize()
+            // 디버그: 녹화된 session.mp4가 있으면 Playback 모드, 없으면 Live 모드
+            if (BuildConfig.DEBUG) {
+                val datasetFile = geospatialService.findLatestDatasetFile()
+                if (datasetFile != null) {
+                    Log.i(TAG, "ARCore Playback 모드: $datasetFile")
+                    geospatialService.startPlayback(datasetFile)
+                } else {
+                    Log.d(TAG, "ARCore Live 모드 (session.mp4 없음)")
+                    geospatialService.startLive()
+                }
+            } else {
+                geospatialService.startLive()
+            }
 
             scope.launch {
                 geospatialService.geospatialPosition
                     .filterNotNull()
                     .collect { position ->
-                        lastGeospatialPosition = position
                         _vpsPosition.value = position  // TODO: 데모 후 삭제
-                        updateFusedPosition()
+                        positionKF.correct(
+                            position.coordinate.latitude,
+                            position.coordinate.longitude,
+                            position.accuracy
+                        )
+                        emitKFPosition()
                     }
+            }
+        }
+
+        // VPS & IMU 융합 Heading 시작
+        // Heading은 캐시만 해두고 position 재계산을 트리거하지 않음.
+        // GPS/VPS 위치 업데이트 시 최신 heading이 자동으로 붙음.
+        headingFusionService.startFusion()
+
+        scope.launch {
+            headingFusionService.fusedHeading
+                .filterNotNull()
+                .collect { headingData ->
+                    lastFusedHeading = headingData
+                }
+        }
+
+        // PDR: 걸음 감지마다 KF 예측 → GPS 주기 사이를 채움
+        scope.launch {
+            imuSensorService.stepDetected.collect {
+                val heading = lastFusedHeading?.heading ?: return@collect
+                if (!positionKF.isInitialized) return@collect
+                positionKF.predictWithStep(PositionKalmanFilter.STEP_LENGTH, heading)
+                emitKFPosition()
             }
         }
     }
@@ -84,6 +151,8 @@ class LocationFusionService @Inject constructor(
     fun stopTracking() {
         _isTracking.value = false
         geospatialService.release()
+        headingFusionService.stopFusion()
+        lastFusedHeading = null
         Log.d(TAG, "Stopped location tracking")
     }
 
@@ -103,85 +172,41 @@ class LocationFusionService @Inject constructor(
         return locationService.getLastKnownLocation()
     }
 
-    private fun updateFusedPosition() {
-        val gps = lastGpsPosition
-        val geospatial = lastGeospatialPosition
-
-        // 융합 로직: ARCore Geospatial이 더 정확하면 우선 사용
-        val bestPosition = when {
-            // Geospatial이 GPS보다 정확하면 Geospatial 사용
-            geospatial != null && gps != null &&
-                    geospatial.accuracy < gps.accuracy &&
-                    isRecent(geospatial) -> {
-                Log.d(TAG, "Using Geospatial position (${geospatial.accuracy}m)")
-                geospatial
-            }
-
-            // Geospatial만 있고 최신이면 사용
-            geospatial != null && gps == null && isRecent(geospatial) -> {
-                geospatial
-            }
-
-            // GPS가 있으면 사용
-            gps != null -> {
-                // Geospatial이 있으면 가중 평균 계산
-                if (geospatial != null && isRecent(geospatial)) {
-                    fusePositions(gps, geospatial)
-                } else {
-                    gps
-                }
-            }
-
-            // 둘 다 없으면 null
-            else -> null
-        }
-
-        bestPosition?.let {
-            _fusedPosition.value = it
-            Log.d(TAG, "Fused position updated: ${it.coordinate}, " +
-                    "accuracy: ${it.accuracy}m, source: ${it.source}")
-        }
-    }
-
     /**
-     * 두 위치를 가중 평균으로 융합합니다.
-     * 정확도가 높을수록 가중치가 높습니다.
+     * KF 상태를 FusedPosition으로 변환하여 방출합니다.
      */
-    private fun fusePositions(gps: FusedPosition, geospatial: FusedPosition): FusedPosition {
-        // 정확도의 역수를 가중치로 사용 (정확도가 낮을수록 높은 가중치)
-        val gpsWeight = 1.0 / gps.accuracy
-        val geospatialWeight = 1.0 / geospatial.accuracy
-        val totalWeight = gpsWeight + geospatialWeight
-
-        val fusedLat = (gps.coordinate.latitude * gpsWeight +
-                geospatial.coordinate.latitude * geospatialWeight) / totalWeight
-        val fusedLng = (gps.coordinate.longitude * gpsWeight +
-                geospatial.coordinate.longitude * geospatialWeight) / totalWeight
-
-        // 융합된 정확도 계산 (대략적인 추정)
-        val fusedAccuracy = minOf(gps.accuracy, geospatial.accuracy)
-
-        return FusedPosition(
-            coordinate = Coordinate(fusedLat, fusedLng),
-            accuracy = fusedAccuracy,
-            altitude = geospatial.altitude ?: gps.altitude,
-            heading = geospatial.heading ?: gps.heading,
-            source = if (geospatial.accuracy < gps.accuracy) {
-                PositionSource.ARCORE_GEOSPATIAL
-            } else {
-                PositionSource.FUSED_LOCATION
-            }
+    private fun emitKFPosition() {
+        if (!positionKF.isInitialized) return
+        val headingData = lastFusedHeading
+        _fusedPosition.value = FusedPosition(
+            coordinate = Coordinate(positionKF.currentLat, positionKF.currentLng),
+            accuracy = positionKF.accuracyMeters,
+            altitude = null,
+            heading = headingData?.heading,
+            source = PositionSource.FUSED_LOCATION,
+            fusedHeading = headingData?.heading,
+            headingConfidence = headingData?.confidence,
+            isMoving = headingData?.isMoving ?: false
         )
     }
 
-    private fun isRecent(position: FusedPosition): Boolean {
-        val age = System.currentTimeMillis() - position.timestamp
-        return age < POSITION_STALE_THRESHOLD
+    /**
+     * 현재 사용자가 바라보는 방향(heading)을 반환합니다.
+     */
+    fun getCurrentHeading(): Float? {
+        return lastFusedHeading?.heading
+            ?: _fusedPosition.value?.heading
+    }
+
+    /**
+     * 사용자가 이동 중인지 확인합니다.
+     */
+    fun isUserMoving(): Boolean {
+        return lastFusedHeading?.isMoving ?: false
     }
 
     companion object {
         private const val TAG = "LocationFusionService"
         private const val POSITION_CACHE_DURATION = 5000L // 5 seconds
-        private const val POSITION_STALE_THRESHOLD = 10000L // 10 seconds
     }
 }

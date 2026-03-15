@@ -1,10 +1,20 @@
 package com.navblind.presentation.navigation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -15,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -26,16 +37,20 @@ import com.navblind.domain.model.SearchResult
 
 @Composable
 fun NavigationScreen(
-    viewModel: NavigationViewModel = hiltViewModel()
+    viewModel: NavigationViewModel = hiltViewModel(),
+    detectionViewModel: DetectionViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
+    val detectionState by detectionViewModel.uiState.collectAsState()
+    val alertMessage by detectionViewModel.alertMessage.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             uiState.isNavigating -> {
                 NavigatingView(
                     uiState = uiState,
+                    detectionState = detectionState,
                     onStop = viewModel::stopNavigation,
                     onRepeat = viewModel::repeatCurrentInstruction
                 )
@@ -46,6 +61,8 @@ fun NavigationScreen(
                     searchResults = searchResults,
                     isSearching = uiState.isSearching,
                     isLoading = uiState.isLoading,
+                    isRecording = uiState.isRecording,
+                    detectionLog = detectionState.detectionLog,
                     onSearchQueryChange = { query ->
                         if (query.length >= 2) {
                             viewModel.searchDestination(query)
@@ -53,8 +70,45 @@ fun NavigationScreen(
                     },
                     onVoiceInput = viewModel::startVoiceInput,
                     onDestinationSelected = viewModel::startNavigation,
-                    onClearSearch = viewModel::clearSearchResults
+                    onClearSearch = viewModel::clearSearchResults,
+                    onToggleRecording = viewModel::toggleRecording
                 )
+            }
+        }
+
+        // TTS 경고 메시지 오버레이: 장애물 감지 시 화면 하단에 3초간 표시
+        AnimatedVisibility(
+            visible = alertMessage.isNotEmpty(),
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 80.dp)
+        ) {
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xCC000000)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFFFEB3B),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = alertMessage,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
 
@@ -117,10 +171,13 @@ private fun SearchView(
     searchResults: List<SearchResult>,
     isSearching: Boolean,
     isLoading: Boolean,
+    isRecording: Boolean,
+    detectionLog: List<DetectionLogEntry>,
     onSearchQueryChange: (String) -> Unit,
     onVoiceInput: () -> Unit,
     onDestinationSelected: (SearchResult) -> Unit,
-    onClearSearch: () -> Unit
+    onClearSearch: () -> Unit,
+    onToggleRecording: () -> Unit
 ) {
     var localQuery by remember { mutableStateOf(searchQuery) }
 
@@ -133,16 +190,24 @@ private fun SearchView(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // App title
-        Text(
-            text = "NavBlind",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
+        // App title + 데이터 수집 버튼
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "NavBlind",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f)
+            )
+            RecordingButton(isRecording = isRecording, onClick = onToggleRecording)
+        }
 
-        // Search input
+        // Search input — 경로 계산 중에는 비활성화
         OutlinedTextField(
             value = localQuery,
             onValueChange = {
@@ -150,13 +215,21 @@ private fun SearchView(
                 onSearchQueryChange(it)
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("목적지를 입력하세요") },
+            placeholder = { Text(if (isLoading) "경로 탐색 중..." else "목적지를 입력하세요") },
+            enabled = !isLoading,
             leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = "검색")
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(Icons.Default.Search, contentDescription = "검색")
+                }
             },
             trailingIcon = {
                 Row {
-                    if (localQuery.isNotEmpty()) {
+                    if (localQuery.isNotEmpty() && !isLoading) {
                         IconButton(onClick = {
                             localQuery = ""
                             onClearSearch()
@@ -164,7 +237,7 @@ private fun SearchView(
                             Icon(Icons.Default.Clear, contentDescription = "지우기")
                         }
                     }
-                    IconButton(onClick = onVoiceInput) {
+                    IconButton(onClick = onVoiceInput, enabled = !isLoading) {
                         Icon(Icons.Default.Mic, contentDescription = "음성 입력")
                     }
                 }
@@ -176,9 +249,10 @@ private fun SearchView(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Voice input button (large, accessible)
+        // Voice input button (large, accessible) — 경로 계산 중에는 비활성화
         Button(
             onClick = onVoiceInput,
+            enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp),
@@ -212,7 +286,7 @@ private fun SearchView(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            LazyColumn {
+            LazyColumn(modifier = Modifier.weight(1f)) {
                 items(searchResults) { result ->
                     SearchResultItem(
                         result = result,
@@ -220,6 +294,18 @@ private fun SearchView(
                     )
                 }
             }
+        } else {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+
+        // 감지 로그 패널 (검색 화면 하단)
+        if (detectionLog.isNotEmpty()) {
+            DetectionLogPanel(
+                log = detectionLog,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 200.dp)
+            )
         }
     }
 }
@@ -282,6 +368,7 @@ private fun SearchResultItem(
 @Composable
 private fun NavigatingView(
     uiState: NavigationUiState,
+    detectionState: DetectionUiState,
     onStop: () -> Unit,
     onRepeat: () -> Unit
 ) {
@@ -330,6 +417,44 @@ private fun NavigatingView(
             }
         }
         // TODO: 데모 후 삭제 끝
+
+        // 장애물 감지 알림 (T073)
+        detectionState.mostDangerous?.let { obj ->
+            if (obj.dangerLevel >= 0.5f) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (obj.dangerLevel >= 0.8f) {
+                            Color(0xFFB71C1C).copy(alpha = 0.9f)
+                        } else {
+                            Color(0xFFE65100).copy(alpha = 0.85f)
+                        }
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = obj.toWarningMessage(),
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
 
         // Destination name
         Text(
@@ -440,6 +565,191 @@ private fun NavigatingView(
             }
         }
 
+        // 감지 로그 패널 (내비게이션 화면 하단)
+        if (detectionState.detectionLog.isNotEmpty()) {
+            DetectionLogPanel(
+                log = detectionState.detectionLog,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 160.dp)
+                    .padding(bottom = 8.dp)
+            )
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
+/**
+ * 데이터 수집 토글 버튼.
+ * 녹화 중이면 빨간 점이 깜빡이며 "수집 중"을 표시한다.
+ * 대기 중이면 회색 원형 아이콘으로 최소한의 공간만 차지한다.
+ */
+@Composable
+private fun RecordingButton(isRecording: Boolean, onClick: () -> Unit) {
+    val recordingRed = Color(0xFFE53935)
+
+    if (isRecording) {
+        val infiniteTransition = rememberInfiniteTransition(label = "rec_blink")
+        val alpha by infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 0.2f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(600),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "rec_dot_alpha"
+        )
+
+        OutlinedButton(
+            onClick = onClick,
+            border = ButtonDefaults.outlinedButtonBorder.copy(
+                brush = androidx.compose.ui.graphics.SolidColor(recordingRed)
+            ),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .alpha(alpha)
+                    .background(recordingRed, CircleShape)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = "수집 중",
+                fontSize = 13.sp,
+                color = recordingRed
+            )
+        }
+    } else {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(40.dp)
+                .border(1.dp, Color.LightGray, CircleShape)
+        ) {
+            Icon(
+                Icons.Default.FiberManualRecord,
+                contentDescription = "데이터 수집 시작",
+                tint = Color.Gray,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+/**
+ * 실시간 감지 로그 패널.
+ * 최신 항목이 상단에 표시되며 스크롤 가능합니다.
+ * 각 행: [시각] 클래스명  거리  방향  신뢰도  위험도 바
+ */
+@Composable
+private fun DetectionLogPanel(
+    log: List<DetectionLogEntry>,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xDD000000))
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.List,
+                    contentDescription = null,
+                    tint = Color(0xFF80CBC4),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "감지 로그  (최근 ${log.size}건)",
+                    color = Color(0xFF80CBC4),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            Divider(color = Color.White.copy(alpha = 0.15f), thickness = 0.5.dp)
+            Spacer(modifier = Modifier.height(2.dp))
+
+            val listState = rememberLazyListState()
+            LazyColumn(state = listState) {
+                items(log) { entry ->
+                    DetectionLogRow(entry)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetectionLogRow(entry: DetectionLogEntry) {
+    val dangerColor = when {
+        entry.dangerLevel >= 0.8f -> Color(0xFFEF5350)  // 빨강
+        entry.dangerLevel >= 0.5f -> Color(0xFFFF9800)  // 주황
+        else -> Color(0xFF81C784)                        // 초록
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 시각
+        Text(
+            text = entry.time,
+            color = Color.Gray,
+            fontSize = 10.sp,
+            modifier = Modifier.width(56.dp)
+        )
+        // 클래스명
+        Text(
+            text = entry.className,
+            color = Color.White,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.width(52.dp)
+        )
+        // 거리
+        Text(
+            text = entry.distance,
+            color = Color(0xFF80DEEA),
+            fontSize = 11.sp,
+            modifier = Modifier.width(38.dp)
+        )
+        // 방향
+        Text(
+            text = entry.direction,
+            color = Color(0xFFCE93D8),
+            fontSize = 11.sp,
+            modifier = Modifier.width(30.dp)
+        )
+        // 신뢰도
+        Text(
+            text = "%.0f%%".format(entry.confidence * 100),
+            color = Color.Gray,
+            fontSize = 10.sp,
+            modifier = Modifier.width(32.dp)
+        )
+        // 위험도 바
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(6.dp)
+                .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(3.dp))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(entry.dangerLevel.coerceIn(0f, 1f))
+                    .background(dangerColor.copy(alpha = 0.8f), RoundedCornerShape(3.dp))
+            )
+        }
     }
 }

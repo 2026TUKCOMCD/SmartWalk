@@ -22,6 +22,7 @@
     <!-- Foreground Service Permission -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <!-- Camera Feature Declaration -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -45,6 +46,11 @@
             android:name="com.google.ar.core"
             android:value="optional" />
 
+        <!-- ARCore Geospatial API Key -->
+        <meta-data
+            android:name="com.google.android.ar.API_KEY"
+            android:value="${arcoreApiKey}" />
+
         <!-- Main Activity -->
         <activity
             android:name=".presentation.MainActivity"
@@ -61,6 +67,12 @@
         <service
             android:name=".service.location.NavigationForegroundService"
             android:foregroundServiceType="location"
+            android:exported="false" />
+
+        <!-- 테스트 데이터 수집 서비스 (GPS + ESP32-CAM 스트림 녹화) -->
+        <service
+            android:name=".service.recording.DataCollectionService"
+            android:foregroundServiceType="location|dataSync"
             android:exported="false" />
 
     </application>
