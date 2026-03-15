@@ -6,6 +6,9 @@ import com.google.android.gms.location.LocationServices
 import com.navblind.BuildConfig
 import com.navblind.data.remote.DestinationApi
 import com.navblind.data.remote.NavigationApi
+import com.navblind.service.streaming.CameraFrameSource
+import com.navblind.service.streaming.LocalCameraSource
+import com.navblind.service.streaming.MjpegCameraSource
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -77,4 +80,11 @@ object AppModule {
     ): FusedLocationProviderClient {
         return LocationServices.getFusedLocationProviderClient(context)
     }
+
+    @Provides
+    @Singleton
+    fun provideCameraFrameSource(
+        local: LocalCameraSource,
+        mjpeg: MjpegCameraSource
+    ): CameraFrameSource = if (BuildConfig.USE_LOCAL_CAMERA) local else mjpeg
 }
