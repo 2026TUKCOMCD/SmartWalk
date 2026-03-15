@@ -18,9 +18,14 @@ import kotlin.math.sqrt
 /**
  * 경로 이탈 감지 서비스
  * 사용자의 현재 위치와 경로 사이의 거리를 계산하여 이탈 여부를 판단합니다.
+ *
+ * RoadSnappingService를 활용하여 위치를 경로에 정합(snap)하고,
+ * snap 불가 시 이탈로 판단합니다.
  */
 @Singleton
-class RouteDeviationDetector @Inject constructor() {
+class RouteDeviationDetector @Inject constructor(
+    private val roadSnappingService: RoadSnappingService
+) {
 
     private var currentRoute: Route? = null
     private var currentInstructionIndex = 0
@@ -39,6 +44,7 @@ class RouteDeviationDetector @Inject constructor() {
         currentInstructionIndex = 0
         _deviationState.value = DeviationState.OnRoute
         _currentInstruction.value = 0
+        roadSnappingService.setRoute(route)
         Log.d(TAG, "Route set with ${route.waypoints.size} waypoints")
     }
 
@@ -49,41 +55,59 @@ class RouteDeviationDetector @Inject constructor() {
         currentRoute = null
         currentInstructionIndex = 0
         _deviationState.value = DeviationState.OnRoute
+        roadSnappingService.clearRoute()
     }
+
+    // 마지막으로 snap된 위치
+    private val _snappedPosition = MutableStateFlow<FusedPosition?>(null)
+    val snappedPosition: StateFlow<FusedPosition?> = _snappedPosition.asStateFlow()
 
     /**
      * 현재 위치를 기반으로 경로 이탈 여부를 확인합니다.
+     * RoadSnappingService를 사용하여 위치를 경로에 snap하고 이탈 여부를 판단합니다.
      */
     fun checkDeviation(position: FusedPosition): DeviationState {
         val route = currentRoute ?: return DeviationState.OnRoute
 
-        val coordinate = position.coordinate
+        // RoadSnappingService를 사용하여 위치를 경로에 snap
+        val snapResult = roadSnappingService.snapToRoute(position)
 
-        // 경로상의 가장 가까운 지점까지의 거리 계산
-        val (closestDistance, closestIndex) = findClosestPointOnRoute(coordinate, route.waypoints)
-
-        Log.d(TAG, "Distance to route: ${closestDistance}m, closest waypoint: $closestIndex")
-
-        // 현재 instruction 업데이트
-        updateCurrentInstruction(coordinate, route)
-
-        // 이탈 상태 결정
-        val newState = when {
-            closestDistance > DEVIATION_THRESHOLD_CRITICAL -> {
-                Log.w(TAG, "Critical deviation detected: ${closestDistance}m")
-                DeviationState.Deviated(closestDistance)
+        // snap 결과에 따라 처리
+        val (newState, snappedPos) = when (snapResult) {
+            is SnapResult.NoRoute -> {
+                Pair(DeviationState.OnRoute, position)
             }
-            closestDistance > DEVIATION_THRESHOLD_WARNING -> {
-                Log.d(TAG, "Warning: approaching deviation threshold: ${closestDistance}m")
-                DeviationState.Warning(closestDistance)
+            is SnapResult.Snapped -> {
+                Log.d(TAG, "Snapped to route: ${snapResult.distanceOffset}m offset, " +
+                        "segment ${snapResult.segmentIndex}")
+                // 현재 instruction 업데이트
+                updateCurrentInstruction(snapResult.snappedPosition.coordinate, route)
+                Pair(DeviationState.OnRoute, snapResult.snappedPosition)
             }
-            else -> {
-                DeviationState.OnRoute
+            is SnapResult.Deviated -> {
+                Log.w(TAG, "Deviated from route: ${snapResult.distanceFromRoute}m")
+
+                // 경고 또는 이탈 상태 결정
+                val state = if (snapResult.distanceFromRoute > DEVIATION_THRESHOLD_CRITICAL) {
+                    DeviationState.Deviated(snapResult.distanceFromRoute)
+                } else {
+                    DeviationState.Warning(snapResult.distanceFromRoute)
+                }
+                Pair(state, position)
             }
         }
 
+        _snappedPosition.value = snappedPos
         _deviationState.value = newState
         return newState
+    }
+
+    /**
+     * 현재 snap된 위치를 반환합니다.
+     * snap이 불가능한 경우 원래 위치가 반환됩니다.
+     */
+    fun getSnappedPosition(position: FusedPosition): FusedPosition {
+        return roadSnappingService.snapToRoute(position).effectivePosition
     }
 
     /**
@@ -197,8 +221,8 @@ class RouteDeviationDetector @Inject constructor() {
 
     companion object {
         private const val TAG = "RouteDeviationDetector"
-        private const val DEVIATION_THRESHOLD_WARNING = 10.0 // meters
-        private const val DEVIATION_THRESHOLD_CRITICAL = 15.0 // meters
+        private const val DEVIATION_THRESHOLD_WARNING = 25.0  // meters (GPS 오차 고려)
+        private const val DEVIATION_THRESHOLD_CRITICAL = 40.0 // meters (재탐색 트리거)
         private const val ARRIVAL_THRESHOLD = 20.0 // meters
         private const val INSTRUCTION_REACHED_THRESHOLD = 15.0 // meters
     }

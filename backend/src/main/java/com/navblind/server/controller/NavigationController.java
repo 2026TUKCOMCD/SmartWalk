@@ -2,6 +2,7 @@ package com.navblind.server.controller;
 
 import com.navblind.server.dto.RouteDto.*;
 import com.navblind.server.entity.NavigationSession;
+import com.navblind.server.integration.OsrmClient;
 import com.navblind.server.service.NavigationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public class NavigationController {
 
     private final NavigationService navigationService;
+    private final OsrmClient osrmClient;
 
     /**
      * 경로 탐색 (POST /v1/navigation/route)
@@ -117,6 +119,36 @@ public class NavigationController {
                 .build());
     }
 
+    /**
+     * 좌표를 가장 가까운 도로에 snap (GET /v1/navigation/nearest)
+     * VPS/GPS 좌표를 OSM 도로망에 정합하는 데 사용됩니다.
+     */
+    @GetMapping("/nearest")
+    public ResponseEntity<NearestResponse> getNearestRoad(
+            @RequestParam double lat,
+            @RequestParam double lng) {
+
+        log.debug("Nearest road request for: {}, {}", lat, lng);
+
+        OsrmClient.NearestResult result = osrmClient.getNearestRoad(lat, lng, 1);
+
+        if (result == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        NearestResponse response = NearestResponse.builder()
+                .originalLat(result.getOriginalLat())
+                .originalLng(result.getOriginalLng())
+                .snappedLat(result.getSnappedLat())
+                .snappedLng(result.getSnappedLng())
+                .distance(result.getDistance())
+                .roadName(result.getRoadName())
+                .isOnRoad(result.getDistance() < 15.0) // 15m 이내면 도로 위로 판단
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
     private NavigationSessionResponse toSessionResponse(NavigationSession session) {
         return NavigationSessionResponse.builder()
                 .id(session.getId())
@@ -155,5 +187,29 @@ public class NavigationController {
         private String startedAt;
         private String completedAt;
         private Integer rerouteCount;
+    }
+
+    /**
+     * Nearest API 응답 DTO
+     */
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class NearestResponse {
+        /** 원래 요청한 위도 */
+        private Double originalLat;
+        /** 원래 요청한 경도 */
+        private Double originalLng;
+        /** 도로에 snap된 위도 */
+        private Double snappedLat;
+        /** 도로에 snap된 경도 */
+        private Double snappedLng;
+        /** 원래 좌표에서 snap된 좌표까지의 거리 (미터) */
+        private Double distance;
+        /** 도로 이름 (있는 경우) */
+        private String roadName;
+        /** 도로 위에 있는지 여부 (distance < 15m) */
+        private Boolean isOnRoad;
     }
 }
