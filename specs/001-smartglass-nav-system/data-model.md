@@ -238,6 +238,79 @@ Value: {
 
 ---
 
+## Android Navigation Domain Models
+
+서버에서 받은 경로 데이터를 앱 내에서 표현하는 도메인 모델입니다.
+
+### Route
+
+| Field | Type | Description |
+|-------|------|-------------|
+| sessionId | UUID | 서버 NavigationSession ID |
+| distance | Int | 전체 경로 거리 (미터) |
+| duration | Int | 예상 소요 시간 (초) |
+| waypoints | List\<Waypoint\> | 경유 좌표 목록 |
+| instructions | List\<Instruction\> | 턴-바이-턴 안내 목록 |
+
+### Instruction
+
+| Field | Type | Description |
+|-------|------|-------------|
+| step | Int | 안내 순서 인덱스 |
+| type | InstructionType | 안내 종류 |
+| modifier | TurnModifier? | 회전 방향 (해당 시) |
+| text | String | OSRM 원본 안내 텍스트 |
+| distance | Int | 다음 안내까지 거리 (미터) |
+| location | Waypoint | 안내 시작 좌표 |
+
+### InstructionType
+
+| Value | Description |
+|-------|-------------|
+| `DEPART` | 출발 안내 |
+| `TURN` | 회전 안내 (modifier로 방향 지정) |
+| `CONTINUE` | 직진 유지 |
+| `CROSSWALK` | 횡단보도 횡단 안내 — 시각장애인 안전을 위해 HIGH 우선순위로 처리 |
+| `ARRIVE` | 목적지 도착 |
+
+### TurnModifier
+
+| Value | Description |
+|-------|-------------|
+| `LEFT` | 좌회전 |
+| `RIGHT` | 우회전 |
+| `STRAIGHT` | 직진 |
+| `SLIGHT_LEFT` | 약간 좌측 |
+| `SLIGHT_RIGHT` | 약간 우측 |
+| `UTURN` | 유턴 |
+
+### FusedPosition
+
+앱 내에서 여러 위치 소스를 융합한 현재 위치 정보입니다.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| coordinate | Coordinate | 위경도 |
+| accuracy | Float | 정확도 반경 (미터) |
+| heading | Float? | GPS 이동 방향 (절대 방위각) |
+| fusedHeading | Float? | IMU+VPS 융합 방위각 (사용자가 바라보는 방향) |
+| headingConfidence | Float? | fusedHeading 신뢰도 (0.0~1.0) |
+| source | PositionSource | 위치 출처 |
+| isMoving | Boolean | 이동 중 여부 |
+
+**정확도 기준** (SC-003):
+- `isHighAccuracy`: accuracy < **5m** — 고정밀 (ARCore Geospatial 활성 시)
+- `isAcceptable`: accuracy < 20m — 사용 가능 (GPS 단독)
+
+**PositionSource**:
+- `GPS` — 기본 GPS
+- `FUSED_LOCATION` — Android FusedLocationProvider
+- `ARCORE_GEOSPATIAL` — ARCore VPS
+- `NETWORK` — Wi-Fi/셀룰러
+- `UNKNOWN`
+
+---
+
 ## Android Local Storage (Room Database)
 
 ### LocalDestination

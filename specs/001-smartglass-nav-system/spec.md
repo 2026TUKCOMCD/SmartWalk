@@ -18,7 +18,7 @@ A visually impaired user wants to navigate to a specific destination. They speak
 **Acceptance Scenarios**:
 
 1. **Given** the user has the mobile app open and connected, **When** the user speaks "경복궁으로 안내해줘" (Guide me to Gyeongbokgung), **Then** the system recognizes the destination and begins voice navigation with the first instruction.
-2. **Given** the user is navigating to a destination, **When** the user approaches a turn point, **Then** the system provides advance voice guidance (e.g., "10미터 앞에서 좌회전하세요" - Turn left in 10 meters).
+2. **Given** the user is navigating to a destination, **When** the user approaches a turn point, **Then** the system provides advance voice guidance at 50m and 30m before the turn (e.g., "50미터 앞에서 좌회전합니다" - Turn left in 50 meters), followed by the turn instruction upon arrival.
 3. **Given** the user has requested navigation, **When** no route can be found, **Then** the system informs the user via voice and suggests alternatives.
 
 ---
@@ -83,7 +83,7 @@ The mobile app provides enhanced location accuracy by reducing GPS errors, ensur
 
 1. **Given** the user is in an urban environment with GPS interference, **When** the app is actively navigating, **Then** the system applies GPS error correction to maintain accuracy within 5 meters.
 2. **Given** GPS signal is weak or unavailable, **When** this condition is detected, **Then** the user is notified and the system uses last known position with appropriate uncertainty indication.
-3. **Given** multiple positioning signals are available (GPS, Wi-Fi, cellular), **When** calculating position, **Then** the system fuses these signals to provide the most accurate location.
+3. **Given** multiple positioning sources are available (GPS, ARCore Geospatial, IMU), **When** calculating position, **Then** the system fuses these sources to provide the most accurate location.
 
 ---
 
@@ -134,7 +134,7 @@ Users can create accounts and have their preferences, frequent destinations, and
 
 #### Mobile Application - Location Services
 - **FR-009**: Mobile app MUST apply GPS error correction algorithms to improve positioning accuracy.
-- **FR-010**: Mobile app MUST fuse multiple positioning sources (GPS, Wi-Fi, cellular) when available.
+- **FR-010**: Mobile app MUST fuse multiple positioning sources (GPS, ARCore Geospatial, IMU) when available.
 - **FR-011**: Mobile app MUST track user position continuously during navigation.
 - **FR-012**: Mobile app MUST detect route deviation based on user position relative to planned path.
 
@@ -187,7 +187,7 @@ Users can create accounts and have their preferences, frequent destinations, and
 
 ### Session 2026-01-30
 
-- Q: What authentication method should the system use for user accounts? → A: Phone number + SMS/voice verification code
+- Q: What authentication method should the system use for user accounts? → A: Firebase phone authentication (SDK 기반 자동 SMS 인증, 사용자가 코드를 직접 입력할 필요 없음)
 - Q: Which mobile platform(s) should the application support? → A: Android only
 - Q: Where should object detection processing be performed? → A: On-device (mobile phone processes video locally)
 - Q: What should be the source for map and routing data? → A: OpenStreetMap + OSRM (open-source, self-hosted)

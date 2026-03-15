@@ -25,26 +25,26 @@
 **Purpose**: Project initialization and basic structure for all three components
 
 ### Backend Setup
-- [ ] T001 [P] Create Spring Boot project structure with Gradle in backend/build.gradle.kts
-- [ ] T002 [P] Configure application.yml with PostgreSQL, Redis, OSRM settings in backend/src/main/resources/application.yml
-- [ ] T003 [P] Add Spring Boot dependencies (Web, JPA, Security, Redis) in backend/build.gradle.kts
+- [X] T001 [P] Create Spring Boot project structure with Gradle in backend/build.gradle.kts
+- [X] T002 [P] Configure application.yml with PostgreSQL, Redis, OSRM settings in backend/src/main/resources/application.yml
+- [X] T003 [P] Add Spring Boot dependencies (Web, JPA, Security, Redis) in backend/build.gradle.kts
 - [ ] T004 [P] Create Dockerfile for Spring Boot application in backend/Dockerfile
 
 ### Android Setup
-- [ ] T005 [P] Create Android project structure with Kotlin in android/
-- [ ] T006 [P] Configure build.gradle.kts with dependencies (TFLite, ARCore, Retrofit, Room, Hilt) in android/app/build.gradle.kts
+- [X] T005 [P] Create Android project structure with Kotlin in android/
+- [X] T006 [P] Configure build.gradle.kts with dependencies (TFLite, ARCore, Retrofit, Room, Hilt) in android/app/build.gradle.kts
 - [ ] T007 [P] Setup Firebase project and add google-services.json to android/app/
-- [ ] T008 [P] Configure AndroidManifest.xml with required permissions (camera, location, microphone, internet) in android/app/src/main/AndroidManifest.xml
+- [X] T008 [P] Configure AndroidManifest.xml with required permissions (camera, location, microphone, internet) in android/app/src/main/AndroidManifest.xml
 
 ### ESP32-CAM Setup
 - [ ] T009 [P] Create PlatformIO project structure in smartglass/platformio.ini
 - [ ] T010 [P] Configure ESP32-CAM board settings and dependencies in smartglass/platformio.ini
 
 ### Infrastructure Setup
-- [ ] T011 [P] Create docker-compose.yml with PostgreSQL, Redis, OSRM, Nginx services in docker/docker-compose.yml
-- [ ] T012 [P] Create Nginx reverse proxy configuration in docker/nginx/nginx.conf
-- [ ] T013 [P] Create OSRM Dockerfile with Korea OSM data setup in docker/osrm/Dockerfile
-- [ ] T014 [P] Create PostgreSQL initialization script in docker/init-scripts/init-db.sql
+- [X] T011 [P] Create docker-compose.yml with PostgreSQL, Redis, OSRM, Nginx services in docker/docker-compose.yml
+- [X] T012 [P] Create Nginx reverse proxy configuration in docker/nginx/nginx.conf
+- [X] T013 [P] Create OSRM Dockerfile with Korea OSM data setup — docker-compose.yml의 osrm-download/osrm-prepare/osrm 멀티 서비스로 대체 구현됨 (별도 Dockerfile 불필요)
+- [X] T014 [P] Create PostgreSQL initialization script in docker/init-scripts/init-db.sql
 
 ---
 
@@ -55,23 +55,23 @@
 **CRITICAL**: No user story work can begin until this phase is complete
 
 ### Backend Foundation
-- [ ] T015 Create User entity with JPA annotations in backend/src/main/java/com/navblind/server/entity/User.java
-- [ ] T016 Create UserRepository interface in backend/src/main/java/com/navblind/server/repository/UserRepository.java
-- [ ] T017 [P] Create base DTO classes (ErrorResponse, etc.) in backend/src/main/java/com/navblind/server/dto/
+- [X] T015 Create User entity with JPA annotations in backend/src/main/java/com/navblind/server/entity/User.java
+- [X] T016 Create UserRepository interface in backend/src/main/java/com/navblind/server/repository/UserRepository.java
+- [X] T017 [P] Create base DTO classes (ErrorResponse, etc.) in backend/src/main/java/com/navblind/server/dto/
 - [ ] T018 [P] Configure Spring Security with Firebase token validation in backend/src/main/java/com/navblind/server/security/FirebaseAuthFilter.java
 - [ ] T019 [P] Create SecurityConfig with JWT bearer authentication in backend/src/main/java/com/navblind/server/config/SecurityConfig.java
 - [ ] T020 [P] Configure Redis connection and cache manager in backend/src/main/java/com/navblind/server/config/RedisConfig.java
-- [ ] T021 [P] Create global exception handler in backend/src/main/java/com/navblind/server/config/GlobalExceptionHandler.java
-- [ ] T022 Create Flyway migration V1__initial_schema.sql in backend/src/main/resources/db/migration/V1__initial_schema.sql
+- [X] T021 [P] Create global exception handler in backend/src/main/java/com/navblind/server/config/GlobalExceptionHandler.java
+- [X] T022 Create Flyway migration V1__initial_schema.sql in backend/src/main/resources/db/migration/V1__initial_schema.sql
 
 ### Android Foundation
-- [ ] T023 Setup Hilt dependency injection modules in android/app/src/main/java/com/navblind/di/AppModule.kt
-- [ ] T024 [P] Create base domain models (User, Coordinate, etc.) in android/app/src/main/java/com/navblind/domain/model/
+- [X] T023 Setup Hilt dependency injection modules in android/app/src/main/java/com/navblind/di/AppModule.kt
+- [X] T024 [P] Create base domain models (User, Coordinate, etc.) in android/app/src/main/java/com/navblind/domain/model/
 - [ ] T025 [P] Configure Retrofit API client with base URL in android/app/src/main/java/com/navblind/data/remote/ApiClient.kt
 - [ ] T026 [P] Setup Room database configuration in android/app/src/main/java/com/navblind/data/local/AppDatabase.kt
 - [ ] T027 [P] Create Firebase Auth wrapper service in android/app/src/main/java/com/navblind/service/auth/FirebaseAuthService.kt
-- [ ] T028 [P] Create base TTS service for Korean voice output in android/app/src/main/java/com/navblind/service/voice/TextToSpeechService.kt
-- [ ] T029 [P] Create base Speech Recognition service for Korean input in android/app/src/main/java/com/navblind/service/voice/SpeechRecognitionService.kt
+- [X] T028 [P] Create base TTS service for Korean voice output in android/app/src/main/java/com/navblind/service/voice/TextToSpeechService.kt
+- [X] T029 [P] Create base Speech Recognition service for Korean input in android/app/src/main/java/com/navblind/service/voice/SpeechRecognitionService.kt
 
 ### ESP32-CAM Foundation
 - [ ] T030 Create main.cpp with setup and loop structure in smartglass/src/main.cpp
@@ -89,33 +89,33 @@
 **Independent Test**: Speak "경복궁으로 안내해줘" → Receive voice navigation with first instruction within 5 seconds
 
 ### Backend - US1
-- [ ] T033 [P] [US1] Create Destination entity in backend/src/main/java/com/navblind/server/entity/Destination.java
-- [ ] T034 [P] [US1] Create NavigationSession entity in backend/src/main/java/com/navblind/server/entity/NavigationSession.java
-- [ ] T035 [P] [US1] Create RouteRequest/RouteResponse DTOs in backend/src/main/java/com/navblind/server/dto/RouteDto.java
-- [ ] T036 [P] [US1] Create DestinationRepository interface in backend/src/main/java/com/navblind/server/repository/DestinationRepository.java
-- [ ] T037 [P] [US1] Create NavigationSessionRepository interface in backend/src/main/java/com/navblind/server/repository/NavigationSessionRepository.java
-- [ ] T038 [US1] Create OSRM client for routing requests in backend/src/main/java/com/navblind/server/integration/OsrmClient.java
-- [ ] T039 [US1] Implement NavigationService with route calculation in backend/src/main/java/com/navblind/server/service/NavigationService.java
-- [ ] T040 [US1] Implement DestinationService with search functionality in backend/src/main/java/com/navblind/server/service/DestinationService.java
-- [ ] T041 [US1] Create NavigationController with /navigation/route endpoint in backend/src/main/java/com/navblind/server/controller/NavigationController.java
-- [ ] T042 [US1] Create DestinationController with /destinations/search endpoint in backend/src/main/java/com/navblind/server/controller/DestinationController.java
+- [X] T033 [P] [US1] Create Destination entity in backend/src/main/java/com/navblind/server/entity/Destination.java
+- [X] T034 [P] [US1] Create NavigationSession entity in backend/src/main/java/com/navblind/server/entity/NavigationSession.java
+- [X] T035 [P] [US1] Create RouteRequest/RouteResponse DTOs in backend/src/main/java/com/navblind/server/dto/RouteDto.java
+- [X] T036 [P] [US1] Create DestinationRepository interface in backend/src/main/java/com/navblind/server/repository/DestinationRepository.java
+- [X] T037 [P] [US1] Create NavigationSessionRepository interface in backend/src/main/java/com/navblind/server/repository/NavigationSessionRepository.java
+- [X] T038 [US1] Create OSRM client for routing requests in backend/src/main/java/com/navblind/server/integration/OsrmClient.java
+- [X] T039 [US1] Implement NavigationService with route calculation in backend/src/main/java/com/navblind/server/service/NavigationService.java
+- [X] T040 [US1] Implement DestinationService with search functionality in backend/src/main/java/com/navblind/server/service/DestinationService.java
+- [X] T041 [US1] Create NavigationController with /navigation/route endpoint in backend/src/main/java/com/navblind/server/controller/NavigationController.java
+- [X] T042 [US1] Create DestinationController with /destinations/search endpoint in backend/src/main/java/com/navblind/server/controller/DestinationController.java
 - [ ] T043 [US1] Implement route caching with Redis in backend/src/main/java/com/navblind/server/service/RouteCacheService.java
 
 ### Android - US1
-- [ ] T044 [P] [US1] Create Route domain model in android/app/src/main/java/com/navblind/domain/model/Route.kt
-- [ ] T045 [P] [US1] Create Instruction domain model in android/app/src/main/java/com/navblind/domain/model/Instruction.kt
-- [ ] T046 [P] [US1] Create NavigationApi Retrofit interface in android/app/src/main/java/com/navblind/data/remote/NavigationApi.kt
-- [ ] T047 [P] [US1] Create DestinationApi Retrofit interface in android/app/src/main/java/com/navblind/data/remote/DestinationApi.kt
-- [ ] T048 [US1] Create NavigationRepository interface in android/app/src/main/java/com/navblind/domain/repository/NavigationRepository.kt
-- [ ] T049 [US1] Implement NavigationRepositoryImpl in android/app/src/main/java/com/navblind/data/repository/NavigationRepositoryImpl.kt
-- [ ] T050 [US1] Create StartNavigationUseCase in android/app/src/main/java/com/navblind/domain/usecase/StartNavigationUseCase.kt
+- [X] T044 [P] [US1] Create Route domain model in android/app/src/main/java/com/navblind/domain/model/Route.kt
+- [X] T045 [P] [US1] Create Instruction domain model in android/app/src/main/java/com/navblind/domain/model/Route.kt (Instruction, InstructionType, TurnModifier, Waypoint 클래스 포함)
+- [X] T046 [P] [US1] Create NavigationApi Retrofit interface in android/app/src/main/java/com/navblind/data/remote/NavigationApi.kt
+- [X] T047 [P] [US1] Create DestinationApi Retrofit interface in android/app/src/main/java/com/navblind/data/remote/DestinationApi.kt
+- [X] T048 [US1] Create NavigationRepository interface in android/app/src/main/java/com/navblind/domain/repository/NavigationRepository.kt
+- [X] T049 [US1] Implement NavigationRepositoryImpl in android/app/src/main/java/com/navblind/data/repository/NavigationRepositoryImpl.kt
+- [X] T050 [US1] Create StartNavigationUseCase in android/app/src/main/java/com/navblind/domain/usecase/StartNavigationUseCase.kt
 - [ ] T051 [US1] Create GetNextInstructionUseCase in android/app/src/main/java/com/navblind/domain/usecase/GetNextInstructionUseCase.kt
-- [ ] T052 [US1] Implement VoiceInputService for destination recognition in android/app/src/main/java/com/navblind/service/voice/VoiceInputService.kt
-- [ ] T053 [US1] Implement NavigationGuidanceService for voice turn-by-turn output in android/app/src/main/java/com/navblind/service/voice/NavigationGuidanceService.kt
-- [ ] T054 [US1] Implement InstructionToSpeechConverter for Korean-friendly messages in android/app/src/main/java/com/navblind/service/voice/InstructionToSpeechConverter.kt
-- [ ] T055 [US1] Create NavigationViewModel in android/app/src/main/java/com/navblind/presentation/navigation/NavigationViewModel.kt
-- [ ] T056 [US1] Create NavigationScreen UI (minimal, voice-focused) in android/app/src/main/java/com/navblind/presentation/navigation/NavigationScreen.kt
-- [ ] T057 [US1] Implement voice command parser for navigation commands in android/app/src/main/java/com/navblind/service/voice/VoiceCommandParser.kt
+- [X] T052 [US1] Implement VoiceInputService for destination recognition in android/app/src/main/java/com/navblind/service/voice/VoiceInputService.kt
+- [X] T053 [US1] Implement NavigationGuidanceService for voice turn-by-turn output in android/app/src/main/java/com/navblind/service/voice/NavigationGuidanceService.kt
+- [X] T054 [US1] Implement InstructionToSpeechConverter for Korean-friendly messages in android/app/src/main/java/com/navblind/service/voice/InstructionToSpeechConverter.kt
+- [X] T055 [US1] Create NavigationViewModel in android/app/src/main/java/com/navblind/presentation/navigation/NavigationViewModel.kt
+- [X] T056 [US1] Create NavigationScreen UI (minimal, voice-focused) in android/app/src/main/java/com/navblind/presentation/navigation/NavigationScreen.kt
+- [X] T057 [US1] Implement voice command parser for navigation commands in android/app/src/main/java/com/navblind/service/voice/VoiceCommandParser.kt
 
 **Checkpoint**: User Story 1 complete - Voice navigation from destination input to turn-by-turn guidance works independently
 
@@ -133,21 +133,21 @@
 - [ ] T060 [US2] Implement WebSocket control channel for start/stop in smartglass/src/wifi_stream.cpp
 
 ### Android - US2
-- [ ] T061 [P] [US2] Create DetectedObject domain model in android/app/src/main/java/com/navblind/domain/model/DetectedObject.kt
-- [ ] T062 [P] [US2] Create ObjectDetectionResult model in android/app/src/main/java/com/navblind/domain/model/ObjectDetectionResult.kt
-- [ ] T063 [US2] Implement ESP32CamStreamReceiver for MJPEG parsing in android/app/src/main/java/com/navblind/service/streaming/ESP32CamStreamReceiver.kt
-- [ ] T064 [US2] Implement YoloObjectDetector with TFLite in android/app/src/main/java/com/navblind/service/detection/YoloObjectDetector.kt
-- [ ] T065 [US2] Add YOLOv8n TFLite model file to android/app/src/main/assets/yolov8n.tflite
+- [X] T061 [P] [US2] Create DetectedObject domain model in android/app/src/main/java/com/navblind/domain/model/DetectedObject.kt
+- [X] T062 [P] [US2] Create ObjectDetectionResult model in android/app/src/main/java/com/navblind/domain/model/DetectedObject.kt (ObjectDetectionResult이 DetectedObject.kt 하단에 포함됨)
+- [X] T063 [US2] Implement ESP32CamStreamReceiver for MJPEG parsing in android/app/src/main/java/com/navblind/service/streaming/MjpegCameraSource.kt (ESP32CamStreamReceiver 역할을 MjpegCameraSource + CameraFrameSource 인터페이스로 구현됨)
+- [X] T064 [US2] Implement YoloObjectDetector with TFLite in android/app/src/main/java/com/navblind/service/detection/YoloObjectDetector.kt
+- [X] T065 [US2] Add YOLOv8n TFLite model file to android/app/src/main/assets/yolov8n.tflite
 - [ ] T066 [US2] Implement ObjectTracker for multi-frame tracking in android/app/src/main/java/com/navblind/service/detection/ObjectTracker.kt
-- [ ] T067 [US2] Implement DistanceEstimator for monocular depth in android/app/src/main/java/com/navblind/service/detection/DistanceEstimator.kt
+- [X] T067 [US2] Implement DistanceEstimator for monocular depth in android/app/src/main/java/com/navblind/service/detection/DistanceEstimator.kt
 - [ ] T068 [US2] Implement TrajectoryPredictor for collision risk in android/app/src/main/java/com/navblind/service/detection/TrajectoryPredictor.kt
 - [ ] T069 [US2] Implement HazardPrioritizer for alert ordering in android/app/src/main/java/com/navblind/service/detection/HazardPrioritizer.kt
-- [ ] T070 [US2] Create ObstacleAlertService for voice warnings in android/app/src/main/java/com/navblind/service/voice/ObstacleAlertService.kt
-- [ ] T071 [US2] Implement DetectionToSpeechConverter for Korean alerts in android/app/src/main/java/com/navblind/service/voice/DetectionToSpeechConverter.kt
-- [ ] T072 [US2] Create DetectionViewModel in android/app/src/main/java/com/navblind/presentation/navigation/DetectionViewModel.kt
-- [ ] T073 [US2] Integrate detection overlay in NavigationScreen in android/app/src/main/java/com/navblind/presentation/navigation/NavigationScreen.kt
+- [X] T070 [US2] Create ObstacleAlertService for voice warnings in android/app/src/main/java/com/navblind/service/voice/ObstacleAlertService.kt (MjpegCameraSource → YoloObjectDetector → DetectionToSpeechConverter → TTS 전체 파이프라인. start/stop을 NavigationViewModel이 호출)
+- [X] T071 [US2] Implement DetectionToSpeechConverter for Korean alerts in android/app/src/main/java/com/navblind/service/voice/DetectionToSpeechConverter.kt
+- [X] T072 [US2] Create DetectionViewModel in android/app/src/main/java/com/navblind/presentation/navigation/DetectionViewModel.kt (DetectionUiState 포함)
+- [X] T073 [US2] Integrate detection overlay in NavigationScreen in android/app/src/main/java/com/navblind/presentation/navigation/NavigationScreen.kt (NavigatingView에 mostDangerous 객체 경보 카드 오버레이 추가. NavigationViewModel에서 obstacleAlertService start/stop 연결)
 
-**Checkpoint**: User Story 2 complete - Obstacle detection and voice alerts work independently
+**Checkpoint**: User Story 2 핵심 완료 - MJPEG 스트림 → YOLO 추론 → 한국어 음성 경보 파이프라인 연결됨. T066(ObjectTracker), T068(TrajectoryPredictor), T069(HazardPrioritizer)는 고도화 기능으로 미구현
 
 ---
 
@@ -160,18 +160,18 @@
 **Note**: Can be tested independently using mock route data. Full integration requires US1.
 
 ### Backend - US3
-- [ ] T074 [P] [US3] Create RerouteRequest/Response DTOs in backend/src/main/java/com/navblind/server/dto/RerouteDto.java
-- [ ] T075 [US3] Add reroute endpoint to NavigationController in backend/src/main/java/com/navblind/server/controller/NavigationController.java
-- [ ] T076 [US3] Implement reroute logic in NavigationService in backend/src/main/java/com/navblind/server/service/NavigationService.java
-- [ ] T077 [US3] Add session reroute_count tracking in NavigationSessionRepository
+- [X] T074 [P] [US3] Create RerouteRequest/Response DTOs in backend/src/main/java/com/navblind/server/dto/RouteDto.java (RerouteRequest가 RouteDto 내부 static class로 구현됨)
+- [X] T075 [US3] Add reroute endpoint to NavigationController in backend/src/main/java/com/navblind/server/controller/NavigationController.java
+- [X] T076 [US3] Implement reroute logic in NavigationService in backend/src/main/java/com/navblind/server/service/NavigationService.java
+- [X] T077 [US3] Add session reroute_count tracking in NavigationSession entity (incrementRerouteCount() 메서드, rerouteCount 필드 구현됨)
 
 ### Android - US3
-- [ ] T078 [US3] Create RouteDeviationDetector service in android/app/src/main/java/com/navblind/service/location/RouteDeviationDetector.kt
-- [ ] T079 [US3] Implement deviation threshold logic (15m) in RouteDeviationDetector
-- [ ] T080 [US3] Create RerouteUseCase in android/app/src/main/java/com/navblind/domain/usecase/RerouteUseCase.kt
-- [ ] T081 [US3] Add reroute API call to NavigationRepositoryImpl
-- [ ] T082 [US3] Implement automatic reroute trigger in NavigationViewModel
-- [ ] T083 [US3] Add "경로를 재탐색합니다" voice announcement in NavigationGuidanceService
+- [X] T078 [US3] Create RouteDeviationDetector service in android/app/src/main/java/com/navblind/service/location/RouteDeviationDetector.kt
+- [X] T079 [US3] Implement deviation threshold logic (15m) in RouteDeviationDetector
+- [X] T080 [US3] Create RerouteUseCase in android/app/src/main/java/com/navblind/domain/usecase/RerouteUseCase.kt
+- [X] T081 [US3] Add reroute API call to NavigationRepositoryImpl
+- [X] T082 [US3] Implement automatic reroute trigger in NavigationViewModel (handleDeviation() 메서드 구현됨)
+- [X] T083 [US3] Add "경로를 재탐색합니다" voice announcement in NavigationGuidanceService (announceRerouting() 구현됨)
 
 **Checkpoint**: User Story 3 complete - Automatic rerouting works independently
 
@@ -221,15 +221,15 @@
 **Independent Test**: Compare reported location with actual position in urban area, verify <5m error
 
 ### Android - US5
-- [ ] T102 [P] [US5] Create FusedPosition domain model in android/app/src/main/java/com/navblind/domain/model/FusedPosition.kt
-- [ ] T103 [US5] Implement ARCoreGeospatialService in android/app/src/main/java/com/navblind/service/location/ARCoreGeospatialService.kt
-- [ ] T104 [US5] Implement IMUSensorService for accelerometer/gyroscope in android/app/src/main/java/com/navblind/service/location/IMUSensorService.kt
-- [ ] T105 [US5] Implement VisualOdometryService using detected landmarks in android/app/src/main/java/com/navblind/service/location/VisualOdometryService.kt
-- [ ] T106 [US5] Implement KalmanFilterFusion for sensor fusion in android/app/src/main/java/com/navblind/service/location/KalmanFilterFusion.kt
-- [ ] T107 [US5] Create LocationFusionService that combines all sources in android/app/src/main/java/com/navblind/service/location/LocationFusionService.kt
-- [ ] T108 [US5] Integrate fused location into NavigationViewModel
-- [ ] T109 [US5] Add GPS quality indicator voice feedback in NavigationGuidanceService
-- [ ] T110 [US5] Implement fallback to GPS-only when ARCore unavailable in LocationFusionService
+- [X] T102 [P] [US5] Create FusedPosition domain model in android/app/src/main/java/com/navblind/domain/model/FusedPosition.kt
+- [X] T103 [US5] Implement ARCoreGeospatialService in android/app/src/main/java/com/navblind/service/location/ARCoreGeospatialService.kt
+- [X] T104 [US5] Implement IMUSensorService for accelerometer/gyroscope in android/app/src/main/java/com/navblind/service/location/IMUSensorService.kt
+- [ ] T105 [US5] Implement VisualOdometryService using detected landmarks in android/app/src/main/java/com/navblind/service/location/VisualOdometryService.kt (선택적 개선 — spec FR-010은 GPS/ARCore/IMU만 요구, 필요 시 추가)
+- [X] T106 [US5] Implement KalmanFilterFusion for sensor fusion in android/app/src/main/java/com/navblind/service/location/HeadingFusionService.kt
+- [X] T107 [US5] Create LocationFusionService that combines all sources in android/app/src/main/java/com/navblind/service/location/LocationFusionService.kt
+- [X] T108 [US5] Integrate fused location into NavigationViewModel (observeLocation()에서 locationFusionService.fusedPosition 수집)
+- [X] T109 [US5] Add GPS quality indicator voice feedback in NavigationGuidanceService (NavigationViewModel GPS 품질 모니터링 coroutine 추가, announceGpsLost/Recovered 호출)
+- [X] T110 [US5] Implement fallback to GPS-only when ARCore unavailable in LocationFusionService (geospatialService.checkAvailability() 체크 후 미지원 시 GPS 단독 사용)
 
 **Checkpoint**: User Story 5 complete - Enhanced GPS accuracy works independently
 
