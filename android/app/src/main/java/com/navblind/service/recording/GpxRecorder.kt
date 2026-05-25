@@ -38,6 +38,7 @@ class GpxRecorder(private val outputFile: File) {
         job = CoroutineScope(Dispatchers.IO).launch {
             positionFlow.collect { pos ->
                 pos ?: return@collect
+                if (!pos.isAcceptable) return@collect  // 정확도 20m 초과 포인트 제외
                 appendPoint(pos)
             }
         }

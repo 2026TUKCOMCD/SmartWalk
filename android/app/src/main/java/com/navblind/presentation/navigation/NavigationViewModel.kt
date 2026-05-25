@@ -149,6 +149,13 @@ class NavigationViewModel @Inject constructor(
                 }
             }
         }
+
+        viewModelScope.launch {
+            routeDeviationDetector.remainingDistanceMeters.collect { meters ->
+                meters ?: return@collect
+                _uiState.update { it.copy(remainingDistance = meters.toInt()) }
+            }
+        }
     }
 
     fun searchDestination(query: String) {
@@ -425,6 +432,7 @@ data class NavigationUiState(
     val route: Route? = null,
     val destination: SearchResult? = null,
     val currentInstructionIndex: Int = 0,
+    val remainingDistance: Int? = null,
     val searchQuery: String = "",
     val error: String? = null,
     // TODO: 데모 후 삭제 - GPS/VPS 디버그 표시용
@@ -434,12 +442,4 @@ data class NavigationUiState(
 ) {
     val currentInstruction: Instruction?
         get() = route?.instructions?.getOrNull(currentInstructionIndex)
-
-    val remainingDistance: Int?
-        get() {
-            val route = route ?: return null
-            return route.instructions
-                .drop(currentInstructionIndex)
-                .sumOf { it.distance }
-        }
 }

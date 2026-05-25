@@ -410,7 +410,9 @@ private fun NavigatingView(
                     fontSize = 11.sp
                 )
                 Text(
-                    text = "사용중: ${uiState.currentPosition?.source?.name ?: "없음"}",
+                    text = "KF : ${uiState.currentPosition?.let {
+                        "%.6f, %.6f (±%.1fm)".format(it.coordinate.latitude, it.coordinate.longitude, it.accuracy)
+                    } ?: "없음"}",
                     color = Color.White,
                     fontSize = 11.sp
                 )

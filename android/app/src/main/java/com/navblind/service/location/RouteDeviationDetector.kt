@@ -4,16 +4,11 @@ import android.util.Log
 import com.navblind.domain.model.Coordinate
 import com.navblind.domain.model.FusedPosition
 import com.navblind.domain.model.Route
-import com.navblind.domain.model.Waypoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
 
 /**
  * 경로 이탈 감지 서비스
@@ -30,6 +25,9 @@ class RouteDeviationDetector @Inject constructor(
     private var currentRoute: Route? = null
     private var currentInstructionIndex = 0
 
+    // Warning 상태 진입 시각 (0 = Warning 아님)
+    private var warningStartTime = 0L
+
     private val _deviationState = MutableStateFlow<DeviationState>(DeviationState.OnRoute)
     val deviationState: StateFlow<DeviationState> = _deviationState.asStateFlow()
 
@@ -42,6 +40,7 @@ class RouteDeviationDetector @Inject constructor(
     fun setRoute(route: Route) {
         currentRoute = route
         currentInstructionIndex = 0
+        warningStartTime = 0L
         _deviationState.value = DeviationState.OnRoute
         _currentInstruction.value = 0
         roadSnappingService.setRoute(route)
@@ -54,6 +53,7 @@ class RouteDeviationDetector @Inject constructor(
     fun clearRoute() {
         currentRoute = null
         currentInstructionIndex = 0
+        warningStartTime = 0L
         _deviationState.value = DeviationState.OnRoute
         roadSnappingService.clearRoute()
     }
@@ -61,6 +61,10 @@ class RouteDeviationDetector @Inject constructor(
     // 마지막으로 snap된 위치
     private val _snappedPosition = MutableStateFlow<FusedPosition?>(null)
     val snappedPosition: StateFlow<FusedPosition?> = _snappedPosition.asStateFlow()
+
+    // 경로 위에서의 남은 거리(미터). snap 성공 시 웨이포인트 기하로 계산.
+    private val _remainingDistanceMeters = MutableStateFlow<Double?>(null)
+    val remainingDistanceMeters: StateFlow<Double?> = _remainingDistanceMeters.asStateFlow()
 
     /**
      * 현재 위치를 기반으로 경로 이탈 여부를 확인합니다.
@@ -80,18 +84,47 @@ class RouteDeviationDetector @Inject constructor(
             is SnapResult.Snapped -> {
                 Log.d(TAG, "Snapped to route: ${snapResult.distanceOffset}m offset, " +
                         "segment ${snapResult.segmentIndex}")
-                // 현재 instruction 업데이트
-                updateCurrentInstruction(snapResult.snappedPosition.coordinate, route)
+                // 경로 복귀 → Warning 타이머 리셋
+                warningStartTime = 0L
+                // 웨이포인트 기하 기반 남은 거리 계산
+                val remaining = computeRemainingDistance(
+                    route, snapResult.segmentIndex, snapResult.snappedPosition.coordinate
+                )
+                _remainingDistanceMeters.value = remaining
+                // 이동 거리 기반으로 현재 instruction 업데이트
+                val traveled = route.distance - remaining
+                updateCurrentInstruction(route, traveled)
                 Pair(DeviationState.OnRoute, snapResult.snappedPosition)
             }
             is SnapResult.Deviated -> {
                 Log.w(TAG, "Deviated from route: ${snapResult.distanceFromRoute}m")
 
-                // 경고 또는 이탈 상태 결정
-                val state = if (snapResult.distanceFromRoute > DEVIATION_THRESHOLD_CRITICAL) {
-                    DeviationState.Deviated(snapResult.distanceFromRoute)
-                } else {
-                    DeviationState.Warning(snapResult.distanceFromRoute)
+                val state = when {
+                    snapResult.distanceFromRoute > DEVIATION_THRESHOLD_CRITICAL -> {
+                        // 거리 기준 즉시 재탐색
+                        warningStartTime = 0L
+                        DeviationState.Deviated(snapResult.distanceFromRoute)
+                    }
+                    snapResult.distanceFromRoute > DEVIATION_THRESHOLD_WARNING -> {
+                        // Warning 구간: 타이머 시작 또는 지속 확인
+                        val now = System.currentTimeMillis()
+                        if (warningStartTime == 0L) {
+                            warningStartTime = now
+                            Log.d(TAG, "Warning 타이머 시작")
+                            DeviationState.Warning(snapResult.distanceFromRoute)
+                        } else if (now - warningStartTime >= WARNING_PERSIST_MS) {
+                            Log.w(TAG, "Warning ${now - warningStartTime}ms 지속 → 재탐색 트리거")
+                            warningStartTime = 0L
+                            DeviationState.Deviated(snapResult.distanceFromRoute)
+                        } else {
+                            DeviationState.Warning(snapResult.distanceFromRoute)
+                        }
+                    }
+                    else -> {
+                        // snap 실패했지만 Warning 임계값 미만 → GPS 오차로 간주, OnRoute 유지
+                        warningStartTime = 0L
+                        DeviationState.OnRoute
+                    }
                 }
                 Pair(state, position)
             }
@@ -131,86 +164,53 @@ class RouteDeviationDetector @Inject constructor(
         return arrived
     }
 
-    private fun findClosestPointOnRoute(
-        coordinate: Coordinate,
-        waypoints: List<Waypoint>
-    ): Pair<Double, Int> {
-        if (waypoints.isEmpty()) return Pair(0.0, 0)
-
-        var minDistance = Double.MAX_VALUE
-        var closestIndex = 0
-
-        // 모든 웨이포인트와의 거리 확인
-        for ((index, waypoint) in waypoints.withIndex()) {
-            val distance = coordinate.distanceTo(Coordinate(waypoint.lat, waypoint.lng))
-            if (distance < minDistance) {
-                minDistance = distance
-                closestIndex = index
-            }
-        }
-
-        // 인접한 웨이포인트 사이의 선분까지의 거리도 확인
-        for (i in 0 until waypoints.size - 1) {
-            val p1 = waypoints[i]
-            val p2 = waypoints[i + 1]
-            val distanceToSegment = pointToSegmentDistance(
-                coordinate,
-                Coordinate(p1.lat, p1.lng),
-                Coordinate(p2.lat, p2.lng)
-            )
-            if (distanceToSegment < minDistance) {
-                minDistance = distanceToSegment
-                closestIndex = i
-            }
-        }
-
-        return Pair(minDistance, closestIndex)
-    }
-
-    private fun pointToSegmentDistance(
-        point: Coordinate,
-        segStart: Coordinate,
-        segEnd: Coordinate
-    ): Double {
-        val dx = segEnd.longitude - segStart.longitude
-        val dy = segEnd.latitude - segStart.latitude
-
-        if (dx == 0.0 && dy == 0.0) {
-            return point.distanceTo(segStart)
-        }
-
-        val t = maxOf(0.0, minOf(1.0,
-            ((point.longitude - segStart.longitude) * dx + (point.latitude - segStart.latitude) * dy) /
-                    (dx * dx + dy * dy)
-        ))
-
-        val projLat = segStart.latitude + t * dy
-        val projLng = segStart.longitude + t * dx
-
-        return point.distanceTo(Coordinate(projLat, projLng))
-    }
-
-    private fun updateCurrentInstruction(coordinate: Coordinate, route: Route) {
+    /**
+     * 누적 이동 거리를 기반으로 현재 instruction 인덱스를 업데이트합니다.
+     *
+     * instruction[i].distance = 해당 단계의 이동 거리이므로,
+     * 누적 거리 합이 traveled를 넘기 전 마지막 단계가 현재 단계입니다.
+     */
+    private fun updateCurrentInstruction(route: Route, traveled: Double) {
         if (route.instructions.isEmpty()) return
 
-        // 현재 위치에서 각 instruction 위치까지의 거리 확인
-        for (i in currentInstructionIndex until route.instructions.size) {
-            val instruction = route.instructions[i]
-            val instructionLocation = Coordinate(
-                instruction.location.lat,
-                instruction.location.lng
-            )
-            val distance = coordinate.distanceTo(instructionLocation)
+        var cumulative = 0.0
+        var targetIndex = currentInstructionIndex
 
-            // instruction 위치에 도달하면 다음 instruction으로 진행
-            if (distance < INSTRUCTION_REACHED_THRESHOLD) {
-                if (i > currentInstructionIndex) {
-                    currentInstructionIndex = i
-                    _currentInstruction.value = i
-                    Log.d(TAG, "Advanced to instruction $i: ${instruction.text}")
-                }
+        for (i in route.instructions.indices) {
+            if (traveled >= cumulative && i > targetIndex) {
+                targetIndex = i
             }
+            cumulative += route.instructions[i].distance
         }
+
+        if (targetIndex > currentInstructionIndex) {
+            currentInstructionIndex = targetIndex
+            _currentInstruction.value = targetIndex
+            Log.d(TAG, "Advanced to instruction $targetIndex: ${route.instructions[targetIndex].text}")
+        }
+    }
+
+    /**
+     * 현재 snap 위치에서 경로 끝까지의 남은 거리를 웨이포인트 기하로 계산합니다 (미터).
+     */
+    private fun computeRemainingDistance(
+        route: Route,
+        segmentIndex: Int,
+        snapPoint: Coordinate
+    ): Double {
+        val waypoints = route.waypoints
+        if (segmentIndex >= waypoints.size - 1) return 0.0
+
+        // 현재 세그먼트 끝점까지 거리
+        val segEnd = waypoints[segmentIndex + 1].toCoordinate()
+        var remaining = snapPoint.distanceTo(segEnd)
+
+        // 이후 세그먼트들의 거리 합산
+        for (i in (segmentIndex + 1) until (waypoints.size - 1)) {
+            remaining += waypoints[i].toCoordinate().distanceTo(waypoints[i + 1].toCoordinate())
+        }
+
+        return remaining
     }
 
     sealed class DeviationState {
@@ -221,9 +221,11 @@ class RouteDeviationDetector @Inject constructor(
 
     companion object {
         private const val TAG = "RouteDeviationDetector"
-        private const val DEVIATION_THRESHOLD_WARNING = 25.0  // meters (GPS 오차 고려)
-        private const val DEVIATION_THRESHOLD_CRITICAL = 40.0 // meters (재탐색 트리거)
+        private const val DEVIATION_THRESHOLD_WARNING = 30.0   // meters (GPS 오차 고려)
+        private const val DEVIATION_THRESHOLD_CRITICAL = 60.0  // meters (재탐색 트리거)
         private const val ARRIVAL_THRESHOLD = 20.0 // meters
-        private const val INSTRUCTION_REACHED_THRESHOLD = 15.0 // meters
+
+        // Warning 상태가 이 시간(ms) 이상 지속되면 재탐색 트리거
+        private const val WARNING_PERSIST_MS = 10_000L
     }
 }

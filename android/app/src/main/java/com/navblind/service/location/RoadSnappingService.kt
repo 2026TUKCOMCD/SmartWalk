@@ -302,7 +302,7 @@ class RoadSnappingService @Inject constructor(
         private const val EARTH_RADIUS_METERS = 6371000.0
 
         // snap 관련 설정
-        private const val MAX_SNAP_DISTANCE = 30.0 // 미터, 이 거리 이상이면 이탈로 판단
+        private const val MAX_SNAP_DISTANCE = 50.0 // 미터, 이 거리 이상이면 이탈로 판단
         private const val SEGMENT_SEARCH_WINDOW = 5 // 현재 세그먼트 주변 검색 범위
     }
 }
