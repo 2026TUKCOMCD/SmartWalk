@@ -99,6 +99,44 @@ class PositionKalmanFilter {
         Log.d(TAG, "KF correct: meas=($measLat, $measLng) acc=${accuracyMeters}m K=($kLat) → ($lat, $lng)")
     }
 
+    /**
+     * VO 변위 예측: 횡방향(lateral)과 전방(forward) 이동을 현재 heading으로 변환하여 적용한다.
+     *
+     * @param lateralMeters  우측(+) / 좌측(-) 이동 (m), heading 기준
+     * @param forwardMeters  전진(+) / 후진(-) 이동 (m), heading 기준
+     * @param headingDeg     현재 진행 방향 (0 = 북, 시계 방향)
+     * @param confidenceScale 0-1, 프로세스 노이즈 스케일 (신뢰도 낮을수록 크게)
+     */
+    fun predictWithDisplacement(
+        lateralMeters: Float,
+        forwardMeters: Float,
+        headingDeg: Float,
+        confidenceScale: Float = 1f
+    ) {
+        val headingRad = Math.toRadians(headingDeg.toDouble())
+        val cosLat     = cos(Math.toRadians(lat))
+
+        // 진행 방향(forward) 단위 벡터: (sin H, cos H) → (east, north)
+        // 횡방향(lateral) 단위 벡터: (cos H, -sin H) → 90° 시계방향
+        val dNorth = forwardMeters * cos(headingRad) - lateralMeters * sin(headingRad)
+        val dEast  = forwardMeters * sin(headingRad) + lateralMeters * cos(headingRad)
+
+        val deltaLat = dNorth / METERS_PER_DEG_LAT
+        val deltaLng = if (cosLat > 1e-10) dEast / (METERS_PER_DEG_LAT * cosLat) else 0.0
+
+        lat += deltaLat
+        lng += deltaLng
+
+        // VO는 PDR보다 노이즈가 크므로 프로세스 노이즈를 confidenceScale의 역수로 확대
+        val displacement = sqrt(lateralMeters * lateralMeters.toDouble() + forwardMeters * forwardMeters.toDouble())
+        val noiseScale   = (1f / confidenceScale.coerceIn(0.1f, 1f)).toDouble()
+        val q = ((displacement * noiseScale * VO_UNCERTAINTY_FACTOR) / METERS_PER_DEG_LAT).let { it * it }
+        pLat += q
+        pLng += q
+
+        Log.v(TAG, "KF VO predict: lat=$lateralMeters fwd=$forwardMeters h=$headingDeg → ($lat, $lng)")
+    }
+
     companion object {
         private const val TAG = "PositionKalmanFilter"
 
@@ -113,5 +151,8 @@ class PositionKalmanFilter {
 
         /** 위도 1도 = 약 111km */
         private const val METERS_PER_DEG_LAT = 111_000.0
+
+        /** VO 예측의 기본 불확실성 배율 (PDR STEP_UNCERTAINTY의 2배) */
+        private const val VO_UNCERTAINTY_FACTOR = 0.30
     }
 }

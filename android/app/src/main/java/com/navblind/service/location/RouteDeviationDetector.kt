@@ -26,12 +26,12 @@ class RouteDeviationDetector @Inject constructor(
     private var currentInstructionIndex = 0
 
     // Warning 상태 진입 시각 (0 = Warning 아님)
-    private var warningStartTime = 0L
+    private var warningStartTime: Long? = null
 
     private val _deviationState = MutableStateFlow<DeviationState>(DeviationState.OnRoute)
     val deviationState: StateFlow<DeviationState> = _deviationState.asStateFlow()
 
-    private val _currentInstruction = MutableStateFlow<Int>(0)
+    private val _currentInstruction = MutableStateFlow(0)
     val currentInstruction: StateFlow<Int> = _currentInstruction.asStateFlow()
 
     /**
@@ -40,20 +40,17 @@ class RouteDeviationDetector @Inject constructor(
     fun setRoute(route: Route) {
         currentRoute = route
         currentInstructionIndex = 0
-        warningStartTime = 0L
+        warningStartTime = null
         _deviationState.value = DeviationState.OnRoute
         _currentInstruction.value = 0
         roadSnappingService.setRoute(route)
         Log.d(TAG, "Route set with ${route.waypoints.size} waypoints")
     }
 
-    /**
-     * 경로를 제거합니다.
-     */
     fun clearRoute() {
         currentRoute = null
         currentInstructionIndex = 0
-        warningStartTime = 0L
+        warningStartTime = null
         _deviationState.value = DeviationState.OnRoute
         roadSnappingService.clearRoute()
     }
@@ -66,12 +63,8 @@ class RouteDeviationDetector @Inject constructor(
     private val _remainingDistanceMeters = MutableStateFlow<Double?>(null)
     val remainingDistanceMeters: StateFlow<Double?> = _remainingDistanceMeters.asStateFlow()
 
-    /**
-     * 현재 위치를 기반으로 경로 이탈 여부를 확인합니다.
-     * RoadSnappingService를 사용하여 위치를 경로에 snap하고 이탈 여부를 판단합니다.
-     */
-    fun checkDeviation(position: FusedPosition): DeviationState {
-        val route = currentRoute ?: return DeviationState.OnRoute
+    fun checkDeviation(position: FusedPosition) {
+        val route = currentRoute ?: return
 
         // RoadSnappingService를 사용하여 위치를 경로에 snap
         val snapResult = roadSnappingService.snapToRoute(position)
@@ -84,8 +77,7 @@ class RouteDeviationDetector @Inject constructor(
             is SnapResult.Snapped -> {
                 Log.d(TAG, "Snapped to route: ${snapResult.distanceOffset}m offset, " +
                         "segment ${snapResult.segmentIndex}")
-                // 경로 복귀 → Warning 타이머 리셋
-                warningStartTime = 0L
+                warningStartTime = null
                 // 웨이포인트 기하 기반 남은 거리 계산
                 val remaining = computeRemainingDistance(
                     route, snapResult.segmentIndex, snapResult.snappedPosition.coordinate
@@ -101,20 +93,18 @@ class RouteDeviationDetector @Inject constructor(
 
                 val state = when {
                     snapResult.distanceFromRoute > DEVIATION_THRESHOLD_CRITICAL -> {
-                        // 거리 기준 즉시 재탐색
-                        warningStartTime = 0L
+                        warningStartTime = null
                         DeviationState.Deviated(snapResult.distanceFromRoute)
                     }
                     snapResult.distanceFromRoute > DEVIATION_THRESHOLD_WARNING -> {
-                        // Warning 구간: 타이머 시작 또는 지속 확인
                         val now = System.currentTimeMillis()
-                        if (warningStartTime == 0L) {
+                        if (warningStartTime == null) {
                             warningStartTime = now
                             Log.d(TAG, "Warning 타이머 시작")
                             DeviationState.Warning(snapResult.distanceFromRoute)
-                        } else if (now - warningStartTime >= WARNING_PERSIST_MS) {
-                            Log.w(TAG, "Warning ${now - warningStartTime}ms 지속 → 재탐색 트리거")
-                            warningStartTime = 0L
+                        } else if (now - warningStartTime!! >= WARNING_PERSIST_MS) {
+                            Log.w(TAG, "Warning ${now - warningStartTime!!}ms 지속 → 재탐색 트리거")
+                            warningStartTime = null
                             DeviationState.Deviated(snapResult.distanceFromRoute)
                         } else {
                             DeviationState.Warning(snapResult.distanceFromRoute)
@@ -122,7 +112,7 @@ class RouteDeviationDetector @Inject constructor(
                     }
                     else -> {
                         // snap 실패했지만 Warning 임계값 미만 → GPS 오차로 간주, OnRoute 유지
-                        warningStartTime = 0L
+                        warningStartTime = null
                         DeviationState.OnRoute
                     }
                 }
@@ -132,7 +122,6 @@ class RouteDeviationDetector @Inject constructor(
 
         _snappedPosition.value = snappedPos
         _deviationState.value = newState
-        return newState
     }
 
     /**
@@ -214,7 +203,7 @@ class RouteDeviationDetector @Inject constructor(
     }
 
     sealed class DeviationState {
-        object OnRoute : DeviationState()
+        data object OnRoute : DeviationState()
         data class Warning(val distanceMeters: Double) : DeviationState()
         data class Deviated(val distanceMeters: Double) : DeviationState()
     }
