@@ -46,6 +46,10 @@ class MjpegCameraSource @Inject constructor() : CameraFrameSource {
     private val _isRunning = MutableStateFlow(false)
     override val isRunning: StateFlow<Boolean> = _isRunning.asStateFlow()
 
+    // 배터리/신호 기반 품질 적응 (T098): ObstacleAlertService의 sample() 간격을 외부에서 제어
+    @Volatile private var sampleIntervalMs: Long = 500L
+    fun setSampleInterval(ms: Long) { sampleIntervalMs = ms }
+
     private val _frames = MutableSharedFlow<Bitmap>(
         replay = 0,
         extraBufferCapacity = 2,

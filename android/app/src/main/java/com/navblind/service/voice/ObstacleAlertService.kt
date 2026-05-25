@@ -1,11 +1,21 @@
 package com.navblind.service.voice
 
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import com.navblind.BuildConfig
 import com.navblind.domain.model.ObjectDetectionResult
+import com.navblind.service.detection.HazardPrioritizer
+import com.navblind.service.detection.ObjectTracker
+import com.navblind.service.detection.TrajectoryPredictor
 import com.navblind.service.detection.YoloObjectDetector
+import com.navblind.service.location.VisualOdometryService
 import com.navblind.service.streaming.CameraFrameSource
 import com.navblind.service.streaming.MjpegCameraSource
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -41,11 +51,22 @@ import javax.inject.Singleton
  */
 @Singleton
 class ObstacleAlertService @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val cameraSource: CameraFrameSource,
     private val yoloDetector: YoloObjectDetector,
+    private val objectTracker: ObjectTracker,
+    private val trajectoryPredictor: TrajectoryPredictor,
+    private val hazardPrioritizer: HazardPrioritizer,
+    private val visualOdometry: VisualOdometryService,
     private val converter: DetectionToSpeechConverter,
     private val tts: TextToSpeechService
 ) {
+    private val vibrator: Vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+    }
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var detectionJob: Job? = null
 
@@ -88,9 +109,26 @@ class ObstacleAlertService @Inject constructor(
             cameraSource.frames
                 .sample(DETECTION_INTERVAL_MS)
                 .collect { bitmap ->
-                    val result = yoloDetector.detect(bitmap)
+                    val raw = yoloDetector.detect(bitmap)
+
+                    // 1. 안정적인 trackId 부여 + 이력 관리
+                    val tracked = objectTracker.update(raw.objects)
+
+                    // 2. 비주얼 오도메트리: 정적 앵커의 흐름으로 카메라 변위 추정
+                    visualOdometry.setFrameSize(bitmap.width, bitmap.height)
+                    visualOdometry.processFrame(tracked)
+
+                    // 3. 궤적 기반 충돌위험도 계산
+                    val collisionRisks = trajectoryPredictor.predict(
+                        tracked, bitmap.width, bitmap.height
+                    )
+
+                    // 4. 최종 우선순위 정렬
+                    val prioritized = hazardPrioritizer.prioritize(tracked, collisionRisks)
+
+                    val result = raw.copy(objects = prioritized.map { it.obj })
                     _detections.tryEmit(result)
-                    announceIfDangerous(result)
+                    announceTopHazard(prioritized)
                 }
         }
 
@@ -102,37 +140,65 @@ class ObstacleAlertService @Inject constructor(
         detectionJob?.cancel()
         detectionJob = null
         cameraSource.stop()
+        objectTracker.reset()
         lastAlertTime.clear()
         Log.d(TAG, "파이프라인 중지")
     }
 
-    private fun announceIfDangerous(result: ObjectDetectionResult) {
-        val candidate = result.objects
-            .filter { it.dangerLevel >= DANGER_THRESHOLD && it.className in ALERT_WHITELIST }
-            .maxByOrNull { it.dangerLevel }
+    private fun announceTopHazard(prioritized: List<HazardPrioritizer.PrioritizedHazard>) {
+        val candidate = prioritized
+            .firstOrNull { it.priorityScore >= DANGER_THRESHOLD && it.obj.className in ALERT_WHITELIST }
             ?: return
 
         val now = System.currentTimeMillis()
-        if (now - (lastAlertTime[candidate.className] ?: 0L) < ALERT_COOLDOWN_MS) return
+        val cooldown = if (candidate.isDynamic) ALERT_COOLDOWN_DYNAMIC_MS else ALERT_COOLDOWN_MS
+        if (now - (lastAlertTime[candidate.obj.className] ?: 0L) < cooldown) return
 
-        lastAlertTime[candidate.className] = now
+        lastAlertTime[candidate.obj.className] = now
 
-        val message = converter.convert(candidate)
-        val priority = if (candidate.dangerLevel >= 0.8f) {
+        val message = converter.convert(candidate.obj)
+        val ttsPriority = if (candidate.isImmediate) {
             TextToSpeechService.Priority.HIGH
         } else {
             TextToSpeechService.Priority.NORMAL
         }
         _lastAlertMessage.value = message
-        tts.speak(message, priority)
-        Log.d(TAG, "경보: \"$message\" (danger=%.2f)".format(candidate.dangerLevel))
+        tts.speak(message, ttsPriority)
+        vibrateForHazard(candidate)  // T146: 진동 피드백
+        Log.d(TAG, "경보: \"$message\" (score=%.2f, dynamic=%b)".format(
+            candidate.priorityScore, candidate.isDynamic))
+
+        // T147: 2위 위협도 별도 쿨다운 내라면 추가 큐
+        prioritized.drop(1)
+            .filter { it.priorityScore >= DANGER_THRESHOLD && it.obj.className in ALERT_WHITELIST }
+            .take(1)  // 최대 1개 추가
+            .forEach { second ->
+                val now2 = System.currentTimeMillis()
+                val cooldown2 = if (second.isDynamic) ALERT_COOLDOWN_DYNAMIC_MS else ALERT_COOLDOWN_MS
+                if (now2 - (lastAlertTime[second.obj.className] ?: 0L) >= cooldown2) {
+                    lastAlertTime[second.obj.className] = now2
+                    tts.speak(converter.convert(second.obj), TextToSpeechService.Priority.NORMAL)
+                }
+            }
+    }
+
+    private fun vibrateForHazard(hazard: HazardPrioritizer.PrioritizedHazard) {
+        if (!vibrator.hasVibrator()) return
+        val pattern = if (hazard.isImmediate) longArrayOf(0, 200, 100, 200) else longArrayOf(0, 100)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(pattern, -1)
+        }
     }
 
     companion object {
         private const val TAG = "ObstacleAlertService"
         private const val DETECTION_INTERVAL_MS = 500L
-        private const val DANGER_THRESHOLD = 0.5f
-        private const val ALERT_COOLDOWN_MS = 4_000L
+        private const val DANGER_THRESHOLD = 0.4f          // HazardPrioritizer 점수 임계값
+        private const val ALERT_COOLDOWN_MS = 4_000L       // 정적 장애물 쿨다운
+        private const val ALERT_COOLDOWN_DYNAMIC_MS = 2_000L  // 동적 장애물 쿨다운 (더 짧게)
 
         /** 보행 안전과 관련된 경보 대상 클래스 (한국어). EYE-U 9개 + 보행로 특화 4개 */
         private val ALERT_WHITELIST = setOf(

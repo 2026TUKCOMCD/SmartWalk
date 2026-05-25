@@ -1,6 +1,5 @@
 package com.navblind.presentation.navigation
 
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,21 +10,17 @@ import com.navblind.domain.usecase.SearchDestinationUseCase
 import com.navblind.domain.usecase.StartNavigationUseCase
 import com.navblind.service.location.LocationFusionService
 import com.navblind.service.location.RouteDeviationDetector
-import com.navblind.service.recording.DataCollectionService
 import com.navblind.service.voice.NavigationCommand
 import com.navblind.service.voice.NavigationGuidanceService
 import com.navblind.service.voice.ObstacleAlertService
 import com.navblind.service.voice.VoiceInputService
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class NavigationViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val startNavigationUseCase: StartNavigationUseCase,
     private val rerouteUseCase: RerouteUseCase,
     private val searchDestinationUseCase: SearchDestinationUseCase,
@@ -42,6 +37,9 @@ class NavigationViewModel @Inject constructor(
     private val _searchResults = MutableStateFlow<List<SearchResult>>(emptyList())
     val searchResults: StateFlow<List<SearchResult>> = _searchResults.asStateFlow()
 
+    // null = 한 번도 재탐색 안 함
+    private var lastRerouteTime: Long? = null
+
     init {
         voiceInputService.initialize()
         observeLocation()
@@ -51,6 +49,7 @@ class NavigationViewModel @Inject constructor(
 
     private fun fetchInitialLocation() {
         viewModelScope.launch {
+            // ① 검색 화면에서도 현재 위치 표시가 필요하므로 ViewModel 생성 직후 최초 시작
             locationFusionService.startTracking()
             val initialPosition = locationFusionService.getCurrentPosition()
             if (initialPosition != null) {
@@ -80,7 +79,6 @@ class NavigationViewModel @Inject constructor(
                 .collect { position ->
                     if (_uiState.value.isNavigating && _uiState.value.route != null) {
                         routeDeviationDetector.checkDeviation(position)
-
                         if (routeDeviationDetector.checkArrival(position)) {
                             handleArrival()
                         }
@@ -88,7 +86,7 @@ class NavigationViewModel @Inject constructor(
                 }
         }
 
-        // GPS 품질 모니터링 (T109): 신호 소실/복구 시 음성 안내
+        // GPS 품질 모니터링: null 포함 수신해야 GPS 소실을 감지할 수 있음 (filterNotNull 사용 불가)
         viewModelScope.launch {
             locationFusionService.fusedPosition.collect { position ->
                 val wasGpsLost = _uiState.value.isGpsLost
@@ -118,16 +116,13 @@ class NavigationViewModel @Inject constructor(
         // TODO: 데모 후 삭제 끝
     }
 
-    // 재탐색 후 일정 시간 동안 재탐색 억제 (연속 호출 방지)
-    private var lastRerouteTime = 0L
-
     private fun observeDeviation() {
         viewModelScope.launch {
             routeDeviationDetector.deviationState.collect { state ->
                 when (state) {
                     is RouteDeviationDetector.DeviationState.Deviated -> {
                         val now = System.currentTimeMillis()
-                        val cooldownOk = now - lastRerouteTime > REROUTE_COOLDOWN_MS
+                        val cooldownOk = lastRerouteTime?.let { now - it > REROUTE_COOLDOWN_MS } ?: true
                         if (!_uiState.value.isRerouting && cooldownOk) {
                             handleDeviation()
                         }
@@ -142,11 +137,9 @@ class NavigationViewModel @Inject constructor(
         viewModelScope.launch {
             routeDeviationDetector.currentInstruction.collect { index ->
                 val route = _uiState.value.route ?: return@collect
-                if (index < route.instructions.size) {
-                    val instruction = route.instructions[index]
-                    _uiState.update { it.copy(currentInstructionIndex = index) }
-                    announceInstruction(instruction)
-                }
+                val instruction = route.instructions.getOrNull(index) ?: return@collect
+                _uiState.update { it.copy(currentInstruction = instruction) }
+                announceInstruction(instruction)
             }
         }
 
@@ -178,7 +171,7 @@ class NavigationViewModel @Inject constructor(
         viewModelScope.launch {
             val origin = _uiState.value.currentPosition?.coordinate
             if (origin == null) {
-                // 위치 권한이 방금 허용되었을 수 있으므로 추적 재시도
+                // ② GPS 미확보: 권한이 방금 허용된 경우 ①이 아직 실행 전일 수 있으므로 재시도
                 locationFusionService.startTracking()
                 _uiState.update { it.copy(error = "GPS 신호를 기다리는 중입니다. 잠시 후 다시 시도해주세요.") }
                 navigationGuidanceService.announceError("GPS 신호를 기다리고 있습니다")
@@ -190,6 +183,7 @@ class NavigationViewModel @Inject constructor(
             startNavigationUseCase(origin, destination.toCoordinate(), destination.name)
                 .onSuccess { route ->
                     routeDeviationDetector.setRoute(route)
+                    // ③ stopNavigation()/handleArrival() 이 stopTracking() 을 호출하므로 재시작 필요
                     locationFusionService.startTracking()
                     obstacleAlertService.start(BuildConfig.GLASS_STREAM_URL)
 
@@ -198,7 +192,7 @@ class NavigationViewModel @Inject constructor(
                             isLoading = false,
                             isNavigating = true,
                             route = route,
-                            currentInstructionIndex = 0
+                            currentInstruction = route.instructions.firstOrNull()
                         )
                     }
 
@@ -229,7 +223,7 @@ class NavigationViewModel @Inject constructor(
                 isNavigating = false,
                 route = null,
                 destination = null,
-                currentInstructionIndex = 0
+                currentInstruction = null
             )
         }
 
@@ -257,10 +251,6 @@ class NavigationViewModel @Inject constructor(
         }
     }
 
-    /**
-     * 음성 명령을 한 번 인식하고 처리합니다.
-     * 네비게이션 중 버튼 탭 등으로 호출합니다.
-     */
     fun startCommandListening() {
         viewModelScope.launch {
             voiceInputService.listenForNavigationCommand().collect { command ->
@@ -290,6 +280,7 @@ class NavigationViewModel @Inject constructor(
             }
             is NavigationCommand.WhereAmI -> {
                 Log.d(TAG, "Command: WhereAmI")
+                // TODO: Nominatim 역지오코딩으로 현재 위치의 도로명/지역명을 안내해야 함
                 repeatCurrentInstruction()
             }
             is NavigationCommand.Unknown -> {
@@ -302,14 +293,11 @@ class NavigationViewModel @Inject constructor(
     }
 
     fun repeatCurrentInstruction() {
-        val route = _uiState.value.route ?: return
-        val index = _uiState.value.currentInstructionIndex
-        val instruction = route.instructions.getOrNull(index) ?: return
+        val instruction = _uiState.value.currentInstruction ?: return
         val currentPos = _uiState.value.currentPosition
-
         navigationGuidanceService.repeatInstruction(
             instruction = instruction,
-            route = route,
+            route = _uiState.value.route,
             currentLat = currentPos?.coordinate?.latitude,
             currentLng = currentPos?.coordinate?.longitude
         )
@@ -332,7 +320,7 @@ class NavigationViewModel @Inject constructor(
                     it.copy(
                         isRerouting = false,
                         route = newRoute,
-                        currentInstructionIndex = 0
+                        currentInstruction = newRoute.instructions.firstOrNull()
                     )
                 }
 
@@ -370,11 +358,9 @@ class NavigationViewModel @Inject constructor(
 
     private fun announceInstruction(instruction: Instruction) {
         val currentPos = _uiState.value.currentPosition
-        val route = _uiState.value.route
-
         navigationGuidanceService.announceInstruction(
             instruction = instruction,
-            route = route,
+            route = _uiState.value.route,
             currentLat = currentPos?.coordinate?.latitude,
             currentLng = currentPos?.coordinate?.longitude
         )
@@ -388,23 +374,8 @@ class NavigationViewModel @Inject constructor(
         _searchResults.value = emptyList()
     }
 
-    fun toggleRecording() {
-        if (_uiState.value.isRecording) {
-            DataCollectionService.stop(context)
-            _uiState.update { it.copy(isRecording = false) }
-            Log.d(TAG, "Data collection stopped")
-        } else {
-            DataCollectionService.start(context, BuildConfig.GLASS_STREAM_URL)
-            _uiState.update { it.copy(isRecording = true) }
-            Log.d(TAG, "Data collection started (stream: ${BuildConfig.GLASS_STREAM_URL})")
-        }
-    }
-
     override fun onCleared() {
         super.onCleared()
-        if (_uiState.value.isRecording) {
-            DataCollectionService.stop(context)
-        }
         voiceInputService.stopListening()
         navigationGuidanceService.stop()
         locationFusionService.stopTracking()
@@ -413,9 +384,7 @@ class NavigationViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "NavigationViewModel"
-        // 재탐색 후 이 시간(ms) 동안 추가 재탐색 억제
         private const val REROUTE_COOLDOWN_MS = 15_000L
-        // 이탈/도착 감지 주기 (보행 속도 기준 500ms로 충분)
         private const val DEVIATION_CHECK_INTERVAL_MS = 500L
     }
 }
@@ -427,11 +396,10 @@ data class NavigationUiState(
     val isRerouting: Boolean = false,
     val hasArrived: Boolean = false,
     val isGpsLost: Boolean = false,
-    val isRecording: Boolean = false,
     val currentPosition: FusedPosition? = null,
     val route: Route? = null,
     val destination: SearchResult? = null,
-    val currentInstructionIndex: Int = 0,
+    val currentInstruction: Instruction? = null,
     val remainingDistance: Int? = null,
     val searchQuery: String = "",
     val error: String? = null,
@@ -439,7 +407,4 @@ data class NavigationUiState(
     val gpsPosition: FusedPosition? = null,
     val vpsPosition: FusedPosition? = null
     // TODO: 데모 후 삭제 끝
-) {
-    val currentInstruction: Instruction?
-        get() = route?.instructions?.getOrNull(currentInstructionIndex)
-}
+)

@@ -1,11 +1,19 @@
 package com.navblind.di
 
 import android.content.Context
+import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.navblind.BuildConfig
+import com.navblind.data.local.AppDatabase
+import com.navblind.data.local.dao.DestinationDao
+import com.navblind.data.local.dao.PreferenceDao
+import com.navblind.data.remote.AuthApi
 import com.navblind.data.remote.DestinationApi
+import com.navblind.data.remote.DeviceApi
 import com.navblind.data.remote.NavigationApi
+import com.navblind.data.remote.RoadSnapApi
+import com.navblind.data.remote.UserApi
 import com.navblind.service.streaming.CameraFrameSource
 import com.navblind.service.streaming.LocalCameraSource
 import com.navblind.service.streaming.MjpegCameraSource
@@ -69,9 +77,28 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideRoadSnapApi(api: NavigationApi): RoadSnapApi = api::getNearestRoad
+
+    @Provides
+    @Singleton
     fun provideDestinationApi(retrofit: Retrofit): DestinationApi {
         return retrofit.create(DestinationApi::class.java)
     }
+
+    @Provides @Singleton
+    fun provideUserApi(retrofit: Retrofit): UserApi = retrofit.create(UserApi::class.java)
+
+    @Provides @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+    @Provides @Singleton
+    fun provideDeviceApi(retrofit: Retrofit): DeviceApi = retrofit.create(DeviceApi::class.java)
+
+    @Provides @Singleton
+    fun provideDestinationDao(db: AppDatabase): DestinationDao = db.destinationDao()
+
+    @Provides @Singleton
+    fun providePreferenceDao(db: AppDatabase): PreferenceDao = db.preferenceDao()
 
     @Provides
     @Singleton
@@ -79,6 +106,16 @@ object AppModule {
         @ApplicationContext context: Context
     ): FusedLocationProviderClient {
         return LocationServices.getFusedLocationProviderClient(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
+        return Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "navblind.db"
+        ).build()
     }
 
     @Provides

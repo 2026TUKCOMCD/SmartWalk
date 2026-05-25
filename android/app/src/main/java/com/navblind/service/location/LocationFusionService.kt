@@ -32,7 +32,8 @@ class LocationFusionService @Inject constructor(
     private val locationService: LocationService,
     private val geospatialService: GeospatialService,
     private val headingFusionService: HeadingFusionService,
-    private val imuSensorService: IMUSensorService
+    private val imuSensorService: IMUSensorService,
+    private val visualOdometryService: VisualOdometryService
 ) {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -142,6 +143,29 @@ class LocationFusionService @Inject constructor(
                 positionKF.predictWithStep(PositionKalmanFilter.STEP_LENGTH, heading)
                 emitKFPosition()
             }
+        }
+
+        // VO: 비주얼 오도메트리 변위를 KF 예측에 반영
+        // PDR 이후에 실행되므로 동일 걸음 주기의 두 번째 예측으로 작동.
+        // 신뢰도가 낮을 때는 프로세스 노이즈를 키워 GPS 보정이 쉽게 덮어쓰도록 함.
+        scope.launch {
+            visualOdometryService.displacement
+                .filterNotNull()
+                .collect { vo ->
+                    if (!vo.isSignificant) return@collect
+                    val heading = lastFusedHeading?.heading ?: return@collect
+                    if (!positionKF.isInitialized) return@collect
+
+                    positionKF.predictWithDisplacement(
+                        lateralMeters  = vo.lateralMeters,
+                        forwardMeters  = vo.forwardMeters,
+                        headingDeg     = heading,
+                        confidenceScale = vo.confidence
+                    )
+                    emitKFPosition()
+                    Log.d(TAG, "VO applied: lateral=%.3fm fwd=%.3fm conf=%.2f".format(
+                        vo.lateralMeters, vo.forwardMeters, vo.confidence))
+                }
         }
     }
 

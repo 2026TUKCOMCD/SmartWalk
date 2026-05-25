@@ -3,17 +3,22 @@ package com.navblind.presentation.navigation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.navblind.domain.model.DetectedObject
+import com.navblind.domain.model.RelativeDirection
 import com.navblind.service.voice.ObstacleAlertService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.Instant
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 /**
@@ -33,15 +38,20 @@ class DetectionViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DetectionUiState())
     val uiState: StateFlow<DetectionUiState> = _uiState.asStateFlow()
 
-    private val _alertMessage = MutableStateFlow("")
-
     /** 화면에 표시할 마지막 경고 메시지. 3초 후 자동으로 비워집니다. */
-    val alertMessage: StateFlow<String> = _alertMessage.asStateFlow()
+    val alertMessage: StateFlow<String> = obstacleAlertService.lastAlertMessage
+        .transformLatest { msg ->
+            emit(msg)
+            if (msg.isNotEmpty()) {
+                delay(3_000L)
+                emit("")
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Lazily, "")
 
     init {
         observeDetections()
         observeStreamState()
-        observeAlertMessages()
     }
 
     private fun observeDetections() {
@@ -49,16 +59,13 @@ class DetectionViewModel @Inject constructor(
             obstacleAlertService.detections.collect { result ->
                 val newEntries = result.objects.map { obj ->
                     DetectionLogEntry(
-                        time = TIME_FORMAT.format(Date(result.frameTimestamp)),
+                        time = LocalTime.ofInstant(
+                            Instant.ofEpochMilli(result.frameTimestamp),
+                            ZoneId.systemDefault()
+                        ).format(TIME_FORMAT),
                         className = obj.className,
                         distance = obj.estimatedDistance?.let { "%.1fm".format(it) } ?: "?m",
-                        direction = when (obj.relativeDirection) {
-                            com.navblind.domain.model.RelativeDirection.LEFT -> "좌"
-                            com.navblind.domain.model.RelativeDirection.SLIGHTLY_LEFT -> "좌전"
-                            com.navblind.domain.model.RelativeDirection.CENTER -> "중앙"
-                            com.navblind.domain.model.RelativeDirection.SLIGHTLY_RIGHT -> "우전"
-                            com.navblind.domain.model.RelativeDirection.RIGHT -> "우"
-                        },
+                        direction = obj.relativeDirection.toUiLabel(),
                         dangerLevel = obj.dangerLevel,
                         confidence = obj.confidence
                     )
@@ -84,25 +91,19 @@ class DetectionViewModel @Inject constructor(
         }
     }
 
-    private fun observeAlertMessages() {
-        viewModelScope.launch {
-            obstacleAlertService.lastAlertMessage.collect { message ->
-                if (message.isNotEmpty()) {
-                    _alertMessage.value = message
-                    delay(3_000L)
-                    // 3초 후 현재 메시지가 아직 같은 경우에만 지운다
-                    if (_alertMessage.value == message) {
-                        _alertMessage.value = ""
-                    }
-                }
-            }
-        }
-    }
-
     companion object {
         private const val LOG_MAX_ENTRIES = 30
-        private val TIME_FORMAT = SimpleDateFormat("HH:mm:ss", Locale.KOREA)
+        // DateTimeFormatter is immutable — safe for shared use across coroutines
+        private val TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss")
     }
+}
+
+private fun RelativeDirection.toUiLabel() = when (this) {
+    RelativeDirection.LEFT -> "좌"
+    RelativeDirection.SLIGHTLY_LEFT -> "좌전"
+    RelativeDirection.CENTER -> "중앙"
+    RelativeDirection.SLIGHTLY_RIGHT -> "우전"
+    RelativeDirection.RIGHT -> "우"
 }
 
 data class DetectionUiState(
