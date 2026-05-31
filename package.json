@@ -1,0 +1,21 @@
+{
+  "name": "smartwalker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd docker && docker-compose up -d postgres redis && cd ../backend && mvnw.cmd spring-boot:run",
+
+    "docker:up": "cd docker && docker-compose up -d postgres redis",
+    "docker:down": "cd docker && docker-compose down",
+    "docker:logs": "cd docker && docker-compose logs -f",
+
+    "backend:dev": "cd backend && mvnw.cmd spring-boot:run",
+    "backend:build": "cd backend && mvnw.cmd package -DskipTests",
+    "backend:test": "cd backend && mvnw.cmd test",
+
+    "android:dev": "cd android && gradlew installDebug",
+    "android:prod": "cd android && gradlew installRelease",
+    "android:build": "cd android && gradlew assembleDebug",
+    "android:build:prod": "cd android && gradlew assembleRelease"
+  }
+}

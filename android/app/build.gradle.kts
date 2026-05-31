@@ -5,22 +5,49 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
-    // TODO: Firebase 설정 후 주석 해제
-    // id("com.google.gms.google-services")
+    id("com.google.gms.google-services")
 }
 
-val localProperties = Properties()
-val localPropertiesFile = rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    localProperties.load(localPropertiesFile.inputStream())
+// .env 파일 파싱 (local.properties는 sdk.dir 전용으로 분리)
+val envFile = rootProject.file(".env")
+val env = Properties().also { props ->
+    if (envFile.exists()) {
+        envFile.forEachLine { line ->
+            val trimmed = line.trim()
+            if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+                val eqIdx = trimmed.indexOf('=')
+                if (eqIdx > 0) {
+                    props[trimmed.substring(0, eqIdx).trim()] = trimmed.substring(eqIdx + 1).trim()
+                }
+            }
+        }
+    }
 }
 
 android {
-    namespace = "com.navblind"
+    namespace = "com.smartwalker"
     compileSdk = 34
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = env.getProperty("KEYSTORE_PATH")
+            if (!keystorePath.isNullOrBlank()) {
+                storeFile = file(keystorePath)
+                storePassword = env.getProperty("KEYSTORE_PASSWORD", "")
+                keyAlias = env.getProperty("KEY_ALIAS", "")
+                keyPassword = env.getProperty("KEY_PASSWORD", "")
+            } else {
+                // KEYSTORE_PATH 미설정 시 debug keystore 사용 (개발용)
+                storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     defaultConfig {
-        applicationId = "com.navblind"
+        applicationId = "com.smartwalker"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -28,10 +55,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        manifestPlaceholders["arcoreApiKey"] = localProperties.getProperty("ARCORE_API_KEY", "")
-
-        // API Base URL
-        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/v1\"")
+        manifestPlaceholders["arcoreApiKey"] = env.getProperty("ARCORE_API_KEY", "")
 
         // TFLite: 에뮬레이터(x86_64) + 실기기(arm64-v8a) 모두 지원
         ndk {
@@ -42,34 +66,29 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
             buildConfigField("String", "API_BASE_URL", "\"https://api.navblind.com/v1\"")
-            // 실제 ESP32-CAM IP (배포 시 local.properties 에서 읽거나 런타임 설정)
+            // 실제 ESP32-CAM 고정 IP
             buildConfigField("String", "GLASS_STREAM_URL", "\"http://192.168.4.1/stream\"")
-            // 릴리즈: ESP32-CAM 사용
             buildConfigField("Boolean", "USE_LOCAL_CAMERA", "false")
         }
         debug {
-            // SERVER_HOST: local.properties 에서 읽음
-            //   실기기(야외) → SERVER_HOST=100.122.72.41
-            //   에뮬레이터   → SERVER_HOST=10.0.2.2
-            val serverHost = localProperties.getProperty("SERVER_HOST", "10.0.2.2")
+            // .env SERVER_HOST:
+            //   실기기(야외) → 100.122.72.41 (Tailscale)
+            //   에뮬레이터   → 10.0.2.2
+            val serverHost = env.getProperty("SERVER_HOST", "10.0.2.2")
             buildConfigField("String", "API_BASE_URL", "\"http://$serverHost:8080/v1\"")
-            buildConfigField("String", "GLASS_STREAM_URL", "\"http://$serverHost:8081/stream\"")
-            // USE_LOCAL_CAMERA: 빌드 명령 -P 플래그 > local.properties > 기본값(true)
-            //   true  → LocalCameraSource  (스마트폰 내장 카메라)
-            //   false → MjpegCameraSource  → GLASS_STREAM_URL 에 연결
-            //             에뮬레이터: http://10.0.2.2:8081/stream → mock_stream.py
-            //             실기기:     http://<SERVER_HOST>:8081/stream → ESP32-CAM
-            //
-            // 사용 예:
-            //   ./gradlew assembleDebug                          → 폰 카메라 (기본)
-            //   ./gradlew assembleDebug -PUSE_LOCAL_CAMERA=false → MJPEG (mock / ESP32)
+            // GLASS_STREAM_URL: .env에 명시 → 사용 / 없으면 SERVER_HOST:8081 (mock_stream)
+            val glassStreamUrl = env.getProperty("GLASS_STREAM_URL")
+                ?: "http://$serverHost:8081/stream"
+            buildConfigField("String", "GLASS_STREAM_URL", "\"$glassStreamUrl\"")
+            // -PUSE_LOCAL_CAMERA=false 플래그 > .env > 기본값(true)
             val useLocalCamera = (project.findProperty("USE_LOCAL_CAMERA") as? String)
-                ?: localProperties.getProperty("USE_LOCAL_CAMERA", "true")
+                ?: env.getProperty("USE_LOCAL_CAMERA", "true")
             buildConfigField("Boolean", "USE_LOCAL_CAMERA", useLocalCamera)
         }
     }
@@ -147,9 +166,9 @@ dependencies {
     implementation("org.tensorflow:tensorflow-lite-gpu:2.14.0")
     implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
 
-    // Firebase - TODO: google-services.json 추가 후 주석 해제
-    // implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-    // implementation("com.google.firebase:firebase-auth-ktx")
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

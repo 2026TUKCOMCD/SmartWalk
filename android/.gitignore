@@ -21,6 +21,10 @@ build/
 # Local configuration file (sdk path, etc)
 local.properties
 
+# App environment config (contains API keys)
+.env
+.env.prod
+
 # Signing files
 *.jks
 *.keystore
