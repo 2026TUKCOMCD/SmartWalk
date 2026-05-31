@@ -6,6 +6,9 @@
     "dev": "cd docker && docker-compose up -d postgres redis && cd ../backend && mvnw.cmd spring-boot:run",
 
     "docker:up": "cd docker && docker-compose up -d postgres redis",
+    "docker:dev": "cd docker && docker-compose --profile dev up -d",
+    "docker:full": "cd docker && docker-compose --profile full up -d",
+    "docker:setup": "cd docker && docker-compose --profile setup up osrm-download osrm-prepare",
     "docker:down": "cd docker && docker-compose down",
     "docker:logs": "cd docker && docker-compose logs -f",
 
@@ -13,9 +16,9 @@
     "backend:build": "cd backend && mvnw.cmd package -DskipTests",
     "backend:test": "cd backend && mvnw.cmd test",
 
-    "android:dev": "cd android && gradlew installDebug",
-    "android:prod": "cd android && gradlew installRelease",
-    "android:build": "cd android && gradlew assembleDebug",
-    "android:build:prod": "cd android && gradlew assembleRelease"
+    "android:dev": "cd android && gradlew.bat installDebug",
+    "android:prod": "cd android && gradlew.bat installRelease",
+    "android:build": "cd android && gradlew.bat assembleDebug",
+    "android:build:prod": "cd android && gradlew.bat assembleRelease"
   }
 }
