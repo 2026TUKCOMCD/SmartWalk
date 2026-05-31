@@ -31,6 +31,17 @@ npm run docker:up      # PostgreSQL, Redis 시작
 npm run backend:dev    # Spring Boot 실행 → http://localhost:8080
 ```
 
+### OSRM + Nominatim 포함 (경로·지오코딩 기능 개발 시)
+```bash
+# 최초 1회 — OSRM 한국 데이터 다운로드 + 전처리 (20~40분)
+npm run docker:setup
+
+# 이후 매번 — 실제 OSRM + Nominatim + postgres + redis 기동
+npm run docker:full
+```
+
+> OSRM 데모 프록시(공개 서버)만 필요하다면: `npm run docker:dev`
+
 ### Android (USB 디버깅 연결 상태)
 ```bash
 npm run android:dev    # 개발 빌드 → .env 서버 설정 사용

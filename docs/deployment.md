@@ -1,4 +1,4 @@
-# NavBlind 배포 가이드
+# SmartWalker 배포 가이드
 
 ## 사전 요구사항
 
@@ -22,7 +22,7 @@ cp docker/.env.example docker/.env
 필수 환경 변수:
 
 ```dotenv
-DOMAIN=navblind.example.com
+DOMAIN=smartwalker.example.com
 POSTGRES_USER=navblind
 POSTGRES_PASSWORD=<strong-password>
 REDIS_PASSWORD=<strong-password>
@@ -86,12 +86,12 @@ docker compose -f docker-compose.prod.yml logs -f backend
 
 ```bash
 cd backend
-./gradlew build -x test
+./mvnw package -DskipTests
 
-docker build -t navblind-backend:${APP_VERSION} .
+docker build -t smartwalker-backend:${APP_VERSION} .
 # 또는 CI/CD에서 자동 빌드 후 레지스트리 push
-docker tag navblind-backend:${APP_VERSION} ghcr.io/<org>/navblind-backend:${APP_VERSION}
-docker push ghcr.io/<org>/navblind-backend:${APP_VERSION}
+docker tag smartwalker-backend:${APP_VERSION} ghcr.io/<org>/smartwalker-backend:${APP_VERSION}
+docker push ghcr.io/<org>/smartwalker-backend:${APP_VERSION}
 ```
 
 프로덕션 서버에서 새 버전 배포:
@@ -112,11 +112,10 @@ cd android
 # Firebase App Distribution 또는 Google Play로 배포
 ```
 
-빌드 시 필요한 환경 변수:
+빌드 시 필요한 환경 변수 (`android/.env`):
 
-```bash
-# android/local.properties
-API_BASE_URL=https://navblind.example.com
+```env
+SERVER_HOST=api.smartwalker.example.com
 USE_LOCAL_CAMERA=false
 ```
 
@@ -137,8 +136,8 @@ pio device monitor
 
 플래시 후 시리얼 모니터에서 확인:
 ```
-[NavBlind] Device ID: NAVBLIND-AABBCC
-[NavBlind] Ready. http://192.168.1.x/stream
+[SmartWalker] Device ID: NAVBLIND-AABBCC
+[SmartWalker] Ready. http://192.168.1.x/stream
 ```
 
 Android 앱에서 "기기 추가" → IP 주소 입력 후 페어링합니다.
@@ -173,11 +172,11 @@ docker compose -f docker/docker-compose.prod.yml logs -f nginx backend
 
 ```bash
 # PostgreSQL 덤프
-docker exec navblind-postgres pg_dump -U navblind navblind \
+docker exec smartwalker-postgres pg_dump -U navblind navblind \
   | gzip > backup_$(date +%Y%m%d).sql.gz
 
 # Redis RDB 복사
-docker cp navblind-redis:/data/dump.rdb ./redis-backup-$(date +%Y%m%d).rdb
+docker cp smartwalker-redis:/data/dump.rdb ./redis-backup-$(date +%Y%m%d).rdb
 ```
 
 ---
@@ -199,6 +198,6 @@ docker compose -f docker/docker-compose.prod.yml logs certbot
 
 ### ESP32 Wi-Fi 연결 실패 시
 - STA 모드 실패 → 자동으로 AP 모드 전환
-- AP SSID: `NavBlind-XXYYZZ` (X,Y,Z = MAC 마지막 3바이트)
+- AP SSID: `SmartWalker-XXYYZZ` (X,Y,Z = MAC 마지막 3바이트)
 - AP Password: `navblind1`
 - Android에서 위 AP에 연결 후 `192.168.4.1` 로 접근
