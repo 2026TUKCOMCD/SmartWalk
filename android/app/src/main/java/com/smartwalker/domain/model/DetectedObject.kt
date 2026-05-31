@@ -93,9 +93,10 @@ enum class ObjectCategory {
             return when (className.lowercase()) {
                 "person", "bicycle", "car", "motorcycle", "bus", "truck" -> MOVING_OBSTACLE
                 "bench", "chair", "potted plant", "fire hydrant", "parking meter",
-                "traffic cone", "bollard", "pole" -> STATIC_OBSTACLE
+                "traffic cone", "bollard", "pole", "obstacle" -> STATIC_OBSTACLE
                 "stairs", "curb", "hole", "construction" -> HAZARD
-                "traffic light", "stop sign", "crosswalk" -> TRAFFIC_SIGNAL
+                "traffic light", "stop sign", "crosswalk",
+                "traffic_light_red", "traffic_light_green", "tactile_paving" -> TRAFFIC_SIGNAL
                 "building", "sign" -> LANDMARK
                 else -> UNKNOWN
             }

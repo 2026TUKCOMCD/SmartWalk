@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.smartwalker.BuildConfig
 import com.smartwalker.domain.model.*
+import com.smartwalker.data.remote.NavigationApi
 import com.smartwalker.domain.usecase.RerouteUseCase
 import com.smartwalker.domain.usecase.SearchDestinationUseCase
 import com.smartwalker.domain.usecase.StartNavigationUseCase
@@ -28,7 +29,8 @@ class NavigationViewModel @Inject constructor(
     private val routeDeviationDetector: RouteDeviationDetector,
     private val voiceInputService: VoiceInputService,
     private val navigationGuidanceService: NavigationGuidanceService,
-    private val obstacleAlertService: ObstacleAlertService
+    private val obstacleAlertService: ObstacleAlertService,
+    private val navigationApi: NavigationApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NavigationUiState())
@@ -280,8 +282,7 @@ class NavigationViewModel @Inject constructor(
             }
             is NavigationCommand.WhereAmI -> {
                 Log.d(TAG, "Command: WhereAmI")
-                // TODO: Nominatim 역지오코딩으로 현재 위치의 도로명/지역명을 안내해야 함
-                repeatCurrentInstruction()
+                announceCurrentLocation()
             }
             is NavigationCommand.Unknown -> {
                 Log.d(TAG, "Command: Unknown ('${command.rawText}')")
@@ -301,6 +302,27 @@ class NavigationViewModel @Inject constructor(
             currentLat = currentPos?.coordinate?.latitude,
             currentLng = currentPos?.coordinate?.longitude
         )
+    }
+
+    private fun announceCurrentLocation() {
+        val position = _uiState.value.currentPosition
+        if (position == null) {
+            navigationGuidanceService.announceError("현재 위치를 확인할 수 없습니다")
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                navigationApi.reverseGeocode(
+                    lat = position.coordinate.latitude,
+                    lng = position.coordinate.longitude
+                )
+            }.onSuccess { response ->
+                navigationGuidanceService.announceWhereAmI(response.locationName)
+            }.onFailure {
+                Log.w(TAG, "Reverse geocode failed", it)
+                navigationGuidanceService.announceError("현재 위치를 가져올 수 없습니다")
+            }
+        }
     }
 
     private suspend fun handleDeviation() {

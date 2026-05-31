@@ -117,6 +117,54 @@ public class NominatimClient {
                 });
     }
 
+    //좌표를 주소로 변환 (역지오코딩)
+    @SuppressWarnings("unchecked")
+    public String reverseGeocode(double lat, double lng) {
+        String url = nominatimProperties.baseUrl()
+                + "/reverse?lat=" + lat
+                + "&lon=" + lng
+                + "&format=json&addressdetails=1";
+
+        try {
+            WebClient webClient = webClientBuilder.build();
+            Map<String, Object> response = webClient.get()
+                    .uri(URI.create(url))
+                    .header("User-Agent", "NavBlind/1.0")
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .timeout(Duration.ofMillis(nominatimProperties.timeout()))
+                    .block();
+
+            if (response == null) return null;
+
+            Map<String, String> address = (Map<String, String>) response.get("address");
+            if (address != null) {
+                String road = address.get("road");
+                String neighbourhood = address.get("neighbourhood");
+                String suburb = address.get("suburb");
+                String city = address.get("city");
+                if (city == null) city = address.get("town");
+                if (city == null) city = address.get("county");
+
+                StringBuilder sb = new StringBuilder();
+                if (city != null) sb.append(city);
+                if (suburb != null) { if (!sb.isEmpty()) sb.append(" "); sb.append(suburb); }
+                if (neighbourhood != null) { if (!sb.isEmpty()) sb.append(" "); sb.append(neighbourhood); }
+                if (road != null) { if (!sb.isEmpty()) sb.append(" "); sb.append(road); }
+                if (!sb.isEmpty()) return sb.toString();
+            }
+
+            String displayName = (String) response.get("display_name");
+            if (displayName != null && displayName.contains(",")) {
+                return displayName.split(",")[0].trim();
+            }
+            return displayName;
+        } catch (Exception e) {
+            log.error("Error calling Nominatim reverse: {}", e.getMessage());
+            return null;
+        }
+    }
+
     //Nominatim 원본 응답(JSON 배열)을 DTO로 변환하는 함수
     private List<SearchResult> parseNominatimResults(List<Map<String, Object>> results, Double userLat, Double userLng) {
         List<SearchResult> searchResults = new ArrayList<>();

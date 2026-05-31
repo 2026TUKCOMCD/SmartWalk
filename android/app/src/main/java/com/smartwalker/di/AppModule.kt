@@ -77,7 +77,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideRoadSnapApi(api: NavigationApi): RoadSnapApi = api::getNearestRoad
+    fun provideRoadSnapApi(api: NavigationApi): RoadSnapApi = RoadSnapApi { lat, lng -> api.getNearestRoad(lat, lng) }
 
     @Provides
     @Singleton

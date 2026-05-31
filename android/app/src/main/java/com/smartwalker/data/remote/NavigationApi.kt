@@ -23,6 +23,12 @@ interface NavigationApi {
         @Query("lat") lat: Double,
         @Query("lng") lng: Double
     ): NearestResponse
+
+    @GET("navigation/reverse")
+    suspend fun reverseGeocode(
+        @Query("lat") lat: Double,
+        @Query("lng") lng: Double
+    ): ReverseGeocodeResponse
 }
 
 data class RouteRequest(
@@ -61,6 +67,10 @@ data class InstructionDto(
     val text: String,
     val distance: Int,
     val location: WaypointDto
+)
+
+data class ReverseGeocodeResponse(
+    val locationName: String
 )
 
 /**

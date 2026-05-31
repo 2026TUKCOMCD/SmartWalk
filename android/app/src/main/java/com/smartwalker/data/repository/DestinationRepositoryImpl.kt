@@ -20,7 +20,8 @@ class DestinationRepositoryImpl @Inject constructor(
             name = result.name,
             latitude = result.latitude,
             longitude = result.longitude,
-            address = result.address
+            address = result.address,
+            label = null
         )
         destinationDao.insert(local)
         local

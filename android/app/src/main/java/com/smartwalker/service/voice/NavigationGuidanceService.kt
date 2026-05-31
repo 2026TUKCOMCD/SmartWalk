@@ -211,6 +211,11 @@ class NavigationGuidanceService @Inject constructor(
         textToSpeechService.speak(message, TextToSpeechService.Priority.HIGH)
     }
 
+    fun announceWhereAmI(locationName: String) {
+        textToSpeechService.speak("현재 위치는 $locationName 입니다.", TextToSpeechService.Priority.HIGH)
+        Log.d(TAG, "WhereAmI announced: $locationName")
+    }
+
     fun stop() {
         textToSpeechService.stop()
     }

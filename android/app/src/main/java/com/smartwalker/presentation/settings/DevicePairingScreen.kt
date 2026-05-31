@@ -182,7 +182,7 @@ private fun DeviceCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // 장식 아이콘 제외
-                Icon(Icons.Default.Glasses, contentDescription = null,
+                Icon(Icons.Default.Videocam, contentDescription = null,
                     modifier = Modifier.clearAndSetSemantics {})
                 Spacer(Modifier.width(8.dp))
                 Column(
@@ -276,7 +276,7 @@ private fun EmptyDevicesCard() {
             modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(Icons.Default.Glasses, contentDescription = null,
+            Icon(Icons.Default.Videocam, contentDescription = null,
                 modifier = Modifier.size(48.dp), tint = Color.Gray)
             Spacer(Modifier.height(8.dp))
             Text("등록된 스마트글래스가 없습니다", color = Color.Gray)

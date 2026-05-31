@@ -41,7 +41,7 @@ class YoloObjectDetector @Inject constructor(
     private var inputWidth = MODEL_INPUT_SIZE
     private var inputHeight = MODEL_INPUT_SIZE
 
-    // 라벨 목록 (COCO 80 클래스 + 커스텀)
+    // 라벨 목록 (6개 커스텀 클래스)
     private val labels = mutableListOf<String>()
 
     /**
@@ -82,10 +82,10 @@ class YoloObjectDetector @Inject constructor(
             distanceEstimator.setFrameSize(inputWidth, inputHeight)
 
             isInitialized = true
-            Log.d(TAG, "YOLOv8n initialized: ${inputWidth}x${inputHeight}")
+            Log.d(TAG, "SmartWalker detector initialized: ${inputWidth}x${inputHeight}")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize YOLOv8n", e)
+            Log.e(TAG, "Failed to initialize SmartWalker detector", e)
             false
         }
     }
@@ -170,8 +170,7 @@ class YoloObjectDetector @Inject constructor(
      * 모델 추론을 실행합니다.
      */
     private fun runInference(inputBuffer: ByteBuffer): Array<Array<FloatArray>> {
-        // YOLOv8 출력: [1, 84, 8400] (80 클래스 + 4 좌표)
-        // 또는 [1, num_classes+4, num_detections]
+        // YOLOv8 출력: [1, num_classes+4, 8400] → 커스텀 모델은 [1, 10, 8400]
         val numDetections = 8400
         val numClasses = labels.size
         val outputSize = numClasses + 4
@@ -207,7 +206,7 @@ class YoloObjectDetector @Inject constructor(
             // 클래스 확률 중 최대값 찾기
             var maxClassProb = 0f
             var maxClassId = 0
-            for (c in 0 until minOf(numClasses, 80)) {
+            for (c in 0 until numClasses) {
                 val prob = output[0][4 + c][i]
                 if (prob > maxClassProb) {
                     maxClassProb = prob
@@ -356,7 +355,7 @@ class YoloObjectDetector @Inject constructor(
         gpuDelegate?.close()
         gpuDelegate = null
         isInitialized = false
-        Log.d(TAG, "YOLOv8n released")
+        Log.d(TAG, "SmartWalker detector released")
     }
 
     private data class RawDetection(
@@ -367,62 +366,27 @@ class YoloObjectDetector @Inject constructor(
 
     companion object {
         private const val TAG = "YoloObjectDetector"
-        private const val MODEL_FILE_NAME = "yolov8n.tflite"
+        private const val MODEL_FILE_NAME = "best_float16.tflite"
         private const val LABELS_FILE_NAME = "labels.txt"
         private const val MODEL_INPUT_SIZE = 640
         private const val CONFIDENCE_THRESHOLD = 0.40f
         private const val NMS_THRESHOLD = 0.45f
         private const val MAX_DETECTIONS = 20
 
-        // COCO 80 클래스 기본 라벨
+        // 학습한 6개 클래스 기본 라벨 (labels.txt 로드 실패 시 폴백)
         private val COCO_LABELS = listOf(
-            "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
-            "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
-            "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
-            "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
-            "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
-            "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
-            "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake",
-            "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop",
-            "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
-            "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
+            "traffic_light_red", "traffic_light_green", "crosswalk",
+            "obstacle", "stairs", "tactile_paving"
         )
 
-        // 한국어 라벨 매핑 (주요 장애물 위주)
+        // 한국어 라벨 매핑
         private val KOREAN_LABELS = mapOf(
-            "person" to "사람",
-            "bicycle" to "자전거",
-            "car" to "자동차",
-            "motorcycle" to "오토바이",
-            "bus" to "버스",
-            "truck" to "트럭",
-            "traffic light" to "신호등",
-            "fire hydrant" to "소화전",
-            "stop sign" to "정지 표지판",
-            "parking meter" to "주차 미터기",
-            "bench" to "벤치",
-            "bird" to "새",
-            "cat" to "고양이",
-            "dog" to "개",
-            "backpack" to "배낭",
-            "umbrella" to "우산",
-            "chair" to "의자",
-            "couch" to "소파",
-            "potted plant" to "화분",
-            "bed" to "침대",
-            "dining table" to "테이블",
-            "tv" to "TV",
-            "laptop" to "노트북",
-            "cell phone" to "휴대폰",
-            "bottle" to "병",
-            "cup" to "컵",
-            // 커스텀 추가 (나중에 훈련 시)
-            "traffic cone" to "라바콘",
-            "bollard" to "볼라드",
-            "braille block" to "점자블록",
-            "construction sign" to "공사 표지판",
-            "kickboard" to "전동킥보드",
-            "manhole" to "맨홀"
+            "traffic_light_red"   to "빨간 신호등",
+            "traffic_light_green" to "초록 신호등",
+            "crosswalk"           to "횡단보도",
+            "obstacle"            to "장애물",
+            "stairs"              to "계단",
+            "tactile_paving"      to "점자블록"
         )
     }
 }

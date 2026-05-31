@@ -66,44 +66,39 @@ fun PreferencesScreen(
                 ) {
                     CircularProgressIndicator(modifier = Modifier.clearAndSetSemantics {})
                 }
-                return@Column
+            } else {
+                AccessibleSlider(
+                    label = "음성 속도",
+                    valueDescription = "${"%.1f".format(pref.speechRate)}배속",
+                    value = pref.speechRate,
+                    range = 0.5f..2.0f,
+                    onChanged = viewModel::updateSpeechRate,
+                    hint = "왼쪽으로 밀면 느려지고 오른쪽으로 밀면 빨라집니다."
+                )
+
+                AccessibleSlider(
+                    label = "장애물 경보 거리",
+                    valueDescription = "${"%.0f".format(pref.alertDistanceMeters)}미터",
+                    value = pref.alertDistanceMeters,
+                    range = 1f..8f,
+                    onChanged = viewModel::updateAlertDistance,
+                    hint = "장애물이 이 거리 이내에 있을 때 경보합니다."
+                )
+
+                AccessibleSwitch(
+                    label = "진동 알림",
+                    checked = pref.vibrationEnabled,
+                    onChanged = viewModel::updateVibration,
+                    hint = "장애물 경보 시 진동 피드백을 사용합니다."
+                )
+
+                AccessibleSwitch(
+                    label = "계단 회피 경로",
+                    checked = pref.avoidStairs,
+                    onChanged = viewModel::updateAvoidStairs,
+                    hint = "계단을 피하는 경로를 우선 안내합니다."
+                )
             }
-
-            // 음성 속도 슬라이더
-            AccessibleSlider(
-                label = "음성 속도",
-                valueDescription = "${"%.1f".format(pref.speechRate)}배속",
-                value = pref.speechRate,
-                range = 0.5f..2.0f,
-                onChanged = viewModel::updateSpeechRate,
-                hint = "왼쪽으로 밀면 느려지고 오른쪽으로 밀면 빨라집니다."
-            )
-
-            // 장애물 경보 거리 슬라이더
-            AccessibleSlider(
-                label = "장애물 경보 거리",
-                valueDescription = "${"%.0f".format(pref.alertDistanceMeters)}미터",
-                value = pref.alertDistanceMeters,
-                range = 1f..8f,
-                onChanged = viewModel::updateAlertDistance,
-                hint = "장애물이 이 거리 이내에 있을 때 경보합니다."
-            )
-
-            // 진동 알림 토글
-            AccessibleSwitch(
-                label = "진동 알림",
-                checked = pref.vibrationEnabled,
-                onChanged = viewModel::updateVibration,
-                hint = "장애물 경보 시 진동 피드백을 사용합니다."
-            )
-
-            // 계단 회피 토글
-            AccessibleSwitch(
-                label = "계단 회피 경로",
-                checked = pref.avoidStairs,
-                onChanged = viewModel::updateAvoidStairs,
-                hint = "계단을 피하는 경로를 우선 안내합니다."
-            )
         }
     }
 }
