@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Firebase Admin SDK key (contains private key — never commit) ###
+*-adminsdk-*.json
+firebase-credentials.json

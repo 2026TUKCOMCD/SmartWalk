@@ -1,4 +1,4 @@
-package com.smartwalker.service.recording
+﻿package com.smartwalker.service.recording
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -44,7 +44,7 @@ import javax.inject.Inject
  *
  * 종료:
  *   DataCollectionService.stop(context)
- *   -> /sdcard/Android/data/com.navblind/files/sessions/<timestamp>/ 에 저장됨
+ *   -> /sdcard/Android/data/com.smartwalker/files/sessions/<timestamp>/ 에 저장됨
  *   -> adb pull 후 collect_session.sh 사용
  */
 @AndroidEntryPoint
@@ -252,8 +252,8 @@ arcore_recording=$arcoreRecording
         private const val NOTIFICATION_ID = 9001
         private const val CHANNEL_ID = "data_collection"
 
-        const val ACTION_START = "com.navblind.recording.START"
-        const val ACTION_STOP = "com.navblind.recording.STOP"
+        const val ACTION_START = "com.smartwalker.recording.START"
+        const val ACTION_STOP = "com.smartwalker.recording.STOP"
         const val EXTRA_STREAM_URL = "stream_url"
 
         private const val DEFAULT_STREAM_URL = "http://192.168.4.1/stream"

@@ -1,4 +1,4 @@
-package com.smartwalker.service.location
+﻿package com.smartwalker.service.location
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -28,8 +28,8 @@ class NavigationForegroundService : Service() {
     companion object {
         const val CHANNEL_ID = "navigation_channel"
         const val NOTIFICATION_ID = 1001
-        const val ACTION_START = "com.navblind.action.START_NAVIGATION"
-        const val ACTION_STOP = "com.navblind.action.STOP_NAVIGATION"
+        const val ACTION_START = "com.smartwalker.action.START_NAVIGATION"
+        const val ACTION_STOP = "com.smartwalker.action.STOP_NAVIGATION"
 
         fun startService(context: Context) {
             val intent = Intent(context, NavigationForegroundService::class.java).apply {

@@ -52,9 +52,11 @@ nominatim:
   timeout: 5000
 
 # Firebase Configuration
+# credentials-path: 키 파일 경로 (backend/ 기준 상대경로 또는 절대경로)
+# disabled=true → X-User-Id 헤더로 인증 대체 (개발/테스트 전용)
 firebase:
-  credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
-  disabled: ${FIREBASE_DISABLED:true}
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:smartwalker-firebase-adminsdk-key.json}
+  disabled: ${FIREBASE_DISABLED:false}
 
 # Actuator
 management:
