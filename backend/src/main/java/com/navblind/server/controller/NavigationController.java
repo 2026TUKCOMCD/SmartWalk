@@ -143,7 +143,7 @@ public class NavigationController {
                 .snappedLng(result.getSnappedLng())
                 .distance(result.getDistance())
                 .roadName(result.getRoadName())
-                .isOnRoad(result.getDistance() < 15.0) // 15m 이내면 도로 위로 판단
+                .isOnRoad(result.getDistance() < 15.0)
                 .build();
 
         return ResponseEntity.ok(response);
