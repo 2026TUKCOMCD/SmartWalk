@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.smartwalker.domain.model.SearchResult
 import com.smartwalker.domain.model.TurnModifier
+import com.smartwalker.service.streaming.CameraSourceType
 
 @Composable
 fun NavigationScreen(
@@ -79,7 +80,7 @@ fun NavigationScreen(
                     isSearching = uiState.isSearching,
                     isLoading = uiState.isLoading,
                     isRecording = isRecording,
-                    detectionLog = detectionState.detectionLog,
+                    cameraSource = detectionState.cameraSource,
                     onSearchQueryChange = { query ->
                         if (query.length >= 2) viewModel.searchDestination(query)
                     },
@@ -193,7 +194,7 @@ private fun SearchView(
     isSearching: Boolean,
     isLoading: Boolean,
     isRecording: Boolean,
-    detectionLog: List<DetectionLogEntry>,
+    cameraSource: CameraSourceType,
     onSearchQueryChange: (String) -> Unit,
     onVoiceInput: () -> Unit,
     onDestinationSelected: (SearchResult) -> Unit,
@@ -202,14 +203,9 @@ private fun SearchView(
     onNavigateToSettings: () -> Unit = {}
 ) {
     var localQuery by remember { mutableStateOf(searchQuery) }
-    val view = LocalView.current
 
-    // 화면 진입 안내
-    LaunchedEffect(Unit) {
-        view.announceForAccessibility(
-            "NavBlind 검색 화면입니다. 목적지를 입력하거나 음성 버튼을 사용하세요."
-        )
-    }
+    // 진입 시 자동 음성인식은 TalkBack과 오디오 채널이 충돌하므로 하지 않는다.
+    // 사용자가 "음성으로 목적지 말하기" 버튼(또는 검색창의 마이크)을 직접 눌러 시작한다.
 
     LaunchedEffect(searchQuery) { localQuery = searchQuery }
 
@@ -242,6 +238,12 @@ private fun SearchView(
                 Icon(Icons.Default.Settings, contentDescription = null)
             }
         }
+
+        // 영상 소스 표시 — 휴대폰 카메라인지 스마트글래스(ESP32)인지 사용자에게 안내
+        CameraSourceBadge(
+            source = cameraSource,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
 
         OutlinedTextField(
             value = localQuery,
@@ -334,17 +336,7 @@ private fun SearchView(
         } else {
             Spacer(modifier = Modifier.weight(1f))
         }
-
-        // 감지 로그는 시각적 디버그 패널 — TalkBack 에서 숨김
-        if (detectionLog.isNotEmpty()) {
-            DetectionLogPanel(
-                log = detectionLog,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 200.dp)
-                    .clearAndSetSemantics {}
-            )
-        }
+        // 감지 로그(디버그용)는 안내 화면에서만 표시한다 — 검색 화면에는 띄우지 않음.
     }
 }
 
@@ -417,6 +409,16 @@ private fun NavigatingView(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // 영상 소스 표시 — 안내 중 사용 중인 카메라(휴대폰/스마트글래스)와 실제 수신 여부
+        CameraSourceBadge(
+            source = detectionState.cameraSource,
+            isReceiving = detectionState.isReceivingFrames,
+            onPrimary = true,
+            modifier = Modifier
+                .align(Alignment.End)
+                .padding(bottom = 8.dp)
+        )
+
         // 디버그 패널 — TalkBack 에서 완전히 숨김
         Card(
             modifier = Modifier
@@ -434,12 +436,6 @@ private fun NavigatingView(
                         "%.6f, %.6f (±%.1fm)".format(it.coordinate.latitude, it.coordinate.longitude, it.accuracy)
                     } ?: "없음"}",
                     color = Color.Cyan, fontSize = 11.sp
-                )
-                Text(
-                    text = "VPS: ${uiState.vpsPosition?.let {
-                        "%.6f, %.6f (±%.1fm)".format(it.coordinate.latitude, it.coordinate.longitude, it.accuracy)
-                    } ?: "없음"}",
-                    color = Color.Green, fontSize = 11.sp
                 )
                 Text(
                     text = "KF : ${uiState.currentPosition?.let {
@@ -612,6 +608,71 @@ private fun NavigatingView(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
+/**
+ * 현재 영상 프레임을 어디서 가져오는지(휴대폰 내장 카메라 / ESP32 스마트글래스)와
+ * 프레임이 실제로 들어오고 있는지를 사용자에게 표시하는 배지.
+ *
+ * @param isReceiving null 이면 수신 상태를 표시하지 않음(검색 화면 등 카메라 미가동 시).
+ *   true=수신 중, false=신호 없음. 단순히 "소스로 설정됨"이 아니라 최근 프레임 수신 여부.
+ * @param onPrimary 안내 화면처럼 primary 색 배경 위에 올릴 때 밝은 색상으로 표시.
+ */
+@Composable
+private fun CameraSourceBadge(
+    source: CameraSourceType,
+    modifier: Modifier = Modifier,
+    isReceiving: Boolean? = null,
+    onPrimary: Boolean = false
+) {
+    val icon = when (source) {
+        CameraSourceType.LOCAL_PHONE -> Icons.Default.PhoneAndroid
+        CameraSourceType.ESP32_GLASS -> Icons.Default.Videocam
+    }
+    val statusText = when (isReceiving) {
+        true -> "수신 중"
+        false -> "신호 없음"
+        null -> null
+    }
+    val label = source.displayName + (statusText?.let { " · $it" } ?: "")
+    val description = buildString {
+        append("영상 소스: ${source.displayName}")
+        statusText?.let { append(". $it") }
+    }
+
+    val contentColor = if (onPrimary) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    val containerColor = if (onPrimary) {
+        Color.White.copy(alpha = 0.18f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    // 수신 상태 색: 수신 중=초록, 신호 없음=빨강
+    val statusColor = when (isReceiving) {
+        true -> Color(0xFF4CAF50)
+        false -> Color(0xFFE53935)
+        null -> Color.Transparent
+    }
+
+    Row(
+        modifier = modifier
+            .background(containerColor, RoundedCornerShape(50))
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clearAndSetSemantics { contentDescription = description },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text = label, color = contentColor, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        // 수신 상태 표시 점 (장식 — 설명은 부모 Row 가 낭독)
+        if (isReceiving != null) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(statusColor, CircleShape)
+            )
+        }
     }
 }
 

@@ -210,9 +210,11 @@ class RouteDeviationDetector @Inject constructor(
 
     companion object {
         private const val TAG = "RouteDeviationDetector"
-        private const val DEVIATION_THRESHOLD_WARNING = 30.0   // meters (GPS 오차 고려)
-        private const val DEVIATION_THRESHOLD_CRITICAL = 60.0  // meters (재탐색 트리거)
-        private const val ARRIVAL_THRESHOLD = 20.0 // meters
+        // 보행자 안전 기준으로 강화: 잘못된 방향으로 멀리 걷기 전에 재탐색.
+        // GPS 순간 노이즈는 WARNING_PERSIST_MS(10초) 지속 조건이 걸러주므로 임계값을 낮춰도 안전하다.
+        private const val DEVIATION_THRESHOLD_WARNING = 20.0   // meters (이전 30m → 20m)
+        private const val DEVIATION_THRESHOLD_CRITICAL = 45.0  // meters (이전 60m → 45m, 즉시 재탐색)
+        private const val ARRIVAL_THRESHOLD = 20.0 // meters (GPS로 더 줄이면 오도착 위험)
 
         // Warning 상태가 이 시간(ms) 이상 지속되면 재탐색 트리거
         private const val WARNING_PERSIST_MS = 10_000L

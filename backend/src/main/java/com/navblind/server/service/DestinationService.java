@@ -3,7 +3,7 @@ package com.navblind.server.service;
 import com.navblind.server.dto.DestinationDto.*;
 import com.navblind.server.entity.Destination;
 import com.navblind.server.entity.User;
-import com.navblind.server.integration.NominatimClient;
+import com.navblind.server.integration.KakaoLocalClient;
 import com.navblind.server.repository.DestinationRepository;
 import com.navblind.server.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,14 +21,14 @@ import java.util.UUID;
 @Slf4j
 public class DestinationService {
 
-    private final NominatimClient nominatimClient;
+    private final KakaoLocalClient kakaoLocalClient;
     private final DestinationRepository destinationRepository;
     private final UserRepository userRepository;
 
     //장소를 찾기를 요청하면 근처 지역을 한국어로 정리된 SearchResult 리스트로 반환
     public List<SearchResult> searchPlaces(String query, Double lat, Double lng, int limit) {
         log.info("Searching places for query: '{}' near ({}, {})", query, lat, lng);
-        return nominatimClient.search(query, lat, lng, limit);
+        return kakaoLocalClient.search(query, lat, lng, limit);
     }
 
     //사용자의 목적지 목록을 보여주는데, label이 있으면 label로 필터링

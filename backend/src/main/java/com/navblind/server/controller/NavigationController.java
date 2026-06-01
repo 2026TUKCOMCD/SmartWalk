@@ -2,7 +2,7 @@ package com.navblind.server.controller;
 
 import com.navblind.server.dto.RouteDto.*;
 import com.navblind.server.entity.NavigationSession;
-import com.navblind.server.integration.NominatimClient;
+import com.navblind.server.integration.KakaoLocalClient;
 import com.navblind.server.integration.OsrmClient;
 import com.navblind.server.service.NavigationService;
 import jakarta.validation.Valid;
@@ -24,7 +24,7 @@ public class NavigationController {
 
     private final NavigationService navigationService;
     private final OsrmClient osrmClient;
-    private final NominatimClient nominatimClient;
+    private final KakaoLocalClient kakaoLocalClient;
 
     /**
      * 경로 탐색 (POST /v1/navigation/route)
@@ -161,7 +161,7 @@ public class NavigationController {
             @RequestParam double lng) {
 
         log.debug("Reverse geocode request: {}, {}", lat, lng);
-        String locationName = nominatimClient.reverseGeocode(lat, lng);
+        String locationName = kakaoLocalClient.reverseGeocode(lat, lng);
 
         if (locationName == null) {
             return ResponseEntity.notFound().build();

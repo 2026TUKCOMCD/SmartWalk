@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.google.firebase.auth.FirebaseAuth
 import com.smartwalker.presentation.common.NavBlindTheme
 import com.smartwalker.service.location.LocationFusionService
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,7 +41,12 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    NavGraph()
+                    val startDestination = if (FirebaseAuth.getInstance().currentUser != null) {
+                        NavRoutes.NAVIGATION
+                    } else {
+                        NavRoutes.LOGIN
+                    }
+                    NavGraph(startDestination = startDestination)
                 }
             }
         }

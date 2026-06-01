@@ -39,8 +39,8 @@ class NavigationViewModel @Inject constructor(
     private val _searchResults = MutableStateFlow<List<SearchResult>>(emptyList())
     val searchResults: StateFlow<List<SearchResult>> = _searchResults.asStateFlow()
 
-    // null = 한 번도 재탐색 안 함
     private var lastRerouteTime: Long? = null
+    private var voiceInputJob: kotlinx.coroutines.Job? = null
 
     init {
         voiceInputService.initialize()
@@ -51,7 +51,7 @@ class NavigationViewModel @Inject constructor(
 
     private fun fetchInitialLocation() {
         viewModelScope.launch {
-            // ① 검색 화면에서도 현재 위치 표시가 필요하므로 ViewModel 생성 직후 최초 시작
+            // 검색 화면에서도 현재 위치 표시가 필요하므로 ViewModel 생성 직후 최초 시작.
             locationFusionService.startTracking()
             val initialPosition = locationFusionService.getCurrentPosition()
             if (initialPosition != null) {
@@ -104,15 +104,10 @@ class NavigationViewModel @Inject constructor(
             }
         }
 
-        // TODO: 데모 후 삭제 - GPS/VPS 위치 별도 수집
+        // TODO: 데모 후 삭제 - 원본 GPS 위치 별도 수집(디버그 표시용)
         viewModelScope.launch {
             locationFusionService.gpsPosition.collect { position ->
                 _uiState.update { it.copy(gpsPosition = position) }
-            }
-        }
-        viewModelScope.launch {
-            locationFusionService.vpsPosition.collect { position ->
-                _uiState.update { it.copy(vpsPosition = position) }
             }
         }
         // TODO: 데모 후 삭제 끝
@@ -185,7 +180,8 @@ class NavigationViewModel @Inject constructor(
             startNavigationUseCase(origin, destination.toCoordinate(), destination.name)
                 .onSuccess { route ->
                     routeDeviationDetector.setRoute(route)
-                    // ③ stopNavigation()/handleArrival() 이 stopTracking() 을 호출하므로 재시작 필요
+                    // ③ 실제 내비게이션 시작 (GPS + PDR + VO + IMU heading).
+                    //    stopNavigation()/handleArrival() 이 stopTracking() 을 호출하므로 재시작 필요.
                     locationFusionService.startTracking()
                     obstacleAlertService.start(BuildConfig.GLASS_STREAM_URL)
 
@@ -234,7 +230,8 @@ class NavigationViewModel @Inject constructor(
     }
 
     fun startVoiceInput() {
-        viewModelScope.launch {
+        voiceInputJob?.cancel()
+        voiceInputJob = viewModelScope.launch {
             voiceInputService.listenForDestination().collect { result ->
                 when (result) {
                     is VoiceInputService.VoiceInputResult.Recognized -> {
@@ -398,6 +395,7 @@ class NavigationViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        voiceInputJob?.cancel()
         voiceInputService.stopListening()
         navigationGuidanceService.stop()
         locationFusionService.stopTracking()
@@ -425,8 +423,7 @@ data class NavigationUiState(
     val remainingDistance: Int? = null,
     val searchQuery: String = "",
     val error: String? = null,
-    // TODO: 데모 후 삭제 - GPS/VPS 디버그 표시용
-    val gpsPosition: FusedPosition? = null,
-    val vpsPosition: FusedPosition? = null
+    // TODO: 데모 후 삭제 - GPS 디버그 표시용
+    val gpsPosition: FusedPosition? = null
     // TODO: 데모 후 삭제 끝
 )

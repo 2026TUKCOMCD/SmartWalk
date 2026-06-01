@@ -55,8 +55,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        manifestPlaceholders["arcoreApiKey"] = env.getProperty("ARCORE_API_KEY", "")
-
         // TFLite: 에뮬레이터(x86_64) + 실기기(arm64-v8a) 모두 지원
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
@@ -157,9 +155,6 @@ dependencies {
 
     // ProcessLifecycleOwner (앱 전체 생명주기 — 서비스에서 CameraX 사용 시 필요)
     implementation("androidx.lifecycle:lifecycle-process:2.6.2")
-
-    // ARCore Geospatial API
-    implementation("com.google.ar:core:1.40.0")
 
     // TensorFlow Lite (YOLO 객체 검출)
     implementation("org.tensorflow:tensorflow-lite:2.14.0")

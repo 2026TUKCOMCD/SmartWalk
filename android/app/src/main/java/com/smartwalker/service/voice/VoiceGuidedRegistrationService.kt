@@ -40,6 +40,14 @@ class VoiceGuidedRegistrationService @Inject constructor(
         tts.speak("로그인에 실패했습니다. 다시 시도해주세요.", TextToSpeechService.Priority.HIGH)
     }
 
+    fun announceCodeSent() {
+        tts.speak("인증번호가 발송되었습니다. 6자리 숫자를 입력해주세요.", TextToSpeechService.Priority.HIGH)
+    }
+
+    fun announceAutoVerified() {
+        tts.speak("자동으로 인증되었습니다.", TextToSpeechService.Priority.HIGH)
+    }
+
     fun performLogin(onSuccess: () -> Unit, onFailure: () -> Unit) {
         announceLoginStart()
         scope.launch {

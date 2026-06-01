@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,6 +84,17 @@ fun PreferencesScreen(
                     range = 1f..8f,
                     onChanged = viewModel::updateAlertDistance,
                     hint = "장애물이 이 거리 이내에 있을 때 경보합니다."
+                )
+
+                // 키 → 보폭 개인화 (PDR 위치 추정 정확도 향상)
+                val stepM = (0.415 * uiState.heightCm / 100.0).coerceIn(0.5, 0.85)
+                AccessibleSlider(
+                    label = "키",
+                    valueDescription = "${uiState.heightCm}센티미터, 보폭 약 ${"%.2f".format(stepM)}미터",
+                    value = uiState.heightCm.toFloat(),
+                    range = 130f..210f,
+                    onChanged = { viewModel.updateHeight(it.roundToInt()) },
+                    hint = "키를 입력하면 걸음 보폭을 추정해 위치 정확도를 높입니다."
                 )
 
                 AccessibleSwitch(

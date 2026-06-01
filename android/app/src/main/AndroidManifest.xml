@@ -13,7 +13,7 @@
     <!-- Microphone Permission (for voice input) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
-    <!-- Camera Permission (for ARCore) -->
+    <!-- Camera Permission (휴대폰 내장 카메라 사용 시 — USE_LOCAL_CAMERA) -->
     <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- Vibration Permission -->
@@ -28,9 +28,6 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
-    <!-- ARCore Feature Declaration -->
-    <uses-feature android:name="android.hardware.camera.ar" android:required="false" />
-
     <application
         android:name=".NavBlindApplication"
         android:allowBackup="true"
@@ -40,16 +37,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.NavBlind"
         android:usesCleartextTraffic="true">
-
-        <!-- ARCore Metadata -->
-        <meta-data
-            android:name="com.google.ar.core"
-            android:value="optional" />
-
-        <!-- ARCore Geospatial API Key -->
-        <meta-data
-            android:name="com.google.android.ar.API_KEY"
-            android:value="${arcoreApiKey}" />
 
         <!-- Main Activity -->
         <activity

@@ -2,6 +2,7 @@ package com.smartwalker.presentation.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.smartwalker.data.local.BodyMetricsStore
 import com.smartwalker.data.local.entity.LocalPreference
 import com.smartwalker.data.remote.PreferenceDto
 import com.smartwalker.data.repository.DestinationRepositoryImpl
@@ -17,10 +18,11 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val updatePreferencesUseCase: UpdatePreferencesUseCase,
-    private val destinationRepository: DestinationRepositoryImpl
+    private val destinationRepository: DestinationRepositoryImpl,
+    private val bodyMetricsStore: BodyMetricsStore
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SettingsUiState())
+    private val _uiState = MutableStateFlow(SettingsUiState(heightCm = bodyMetricsStore.heightCm))
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     val savedDestinations: StateFlow<List<LocalDestination>> = destinationRepository
@@ -42,6 +44,12 @@ class SettingsViewModel @Inject constructor(
     fun updateVibration(enabled: Boolean) = updatePref { it.copy(vibrationEnabled = enabled) }
     fun updateAvoidStairs(avoid: Boolean) = updatePref { it.copy(avoidStairs = avoid) }
     fun updateAlertDistance(meters: Float) = updatePref { it.copy(alertDistanceMeters = meters) }
+
+    /** 사용자 키(cm) 설정 — PDR 보폭 개인화에 사용 (로컬 전용). */
+    fun updateHeight(heightCm: Int) {
+        bodyMetricsStore.heightCm = heightCm
+        _uiState.update { it.copy(heightCm = bodyMetricsStore.heightCm) }
+    }
 
     private fun updatePref(transform: (LocalPreference) -> LocalPreference) {
         val current = _uiState.value.preference ?: return
@@ -68,5 +76,6 @@ class SettingsViewModel @Inject constructor(
 
 data class SettingsUiState(
     val preference: LocalPreference? = null,
+    val heightCm: Int = BodyMetricsStore.DEFAULT_HEIGHT_CM,
     val isLoading: Boolean = false
 )

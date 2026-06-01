@@ -223,7 +223,17 @@ data class VODisplacement(
     val magnitudeMeters: Float
         get() = sqrt(lateralMeters * lateralMeters + forwardMeters * forwardMeters)
 
-    /** 변위가 유의미한지 (최소 신뢰도 + 최소 이동량) */
+    /**
+     * 변위가 유의미한지 (최소 신뢰도 + 최소 이동량).
+     *
+     * VO는 정적 앵커 ≥2개와 안정 추적이 필요해 빈 보도에선 거의 발동하지 않고,
+     * 전방 추정은 노이즈가 크다. 따라서 측위의 보조(기회적 보너스)로만 쓰도록
+     * 신뢰도 게이트를 높게(0.45) 두어, 확실할 때만 KF 예측에 반영한다.
+     */
     val isSignificant: Boolean
-        get() = confidence > 0.2f && magnitudeMeters > 0.01f
+        get() = confidence >= MIN_SIGNIFICANT_CONFIDENCE && magnitudeMeters > 0.01f
+
+    private companion object {
+        const val MIN_SIGNIFICANT_CONFIDENCE = 0.45f
+    }
 }

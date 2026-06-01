@@ -22,9 +22,21 @@ interface CameraFrameSource {
     /** 현재 프레임 수집이 실행 중인지 여부 */
     val isRunning: StateFlow<Boolean>
 
+    /** 이 소스가 휴대폰 내장 카메라인지 ESP32-CAM 스트림인지 식별 */
+    val sourceType: CameraSourceType
+
     /** 프레임 수집 시작 */
     fun start()
 
     /** 프레임 수집 중지 */
     fun stop()
+}
+
+/** 영상 프레임을 제공하는 카메라 종류. UI에서 사용자에게 소스를 표시하는 데 사용됩니다. */
+enum class CameraSourceType(val displayName: String) {
+    /** 스마트폰 내장 카메라 ([LocalCameraSource]) */
+    LOCAL_PHONE("휴대폰 카메라"),
+
+    /** ESP32-CAM 스마트글래스 MJPEG 스트림 ([MjpegCameraSource]) */
+    ESP32_GLASS("스마트글래스")
 }

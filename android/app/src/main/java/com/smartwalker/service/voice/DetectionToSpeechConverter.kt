@@ -9,19 +9,25 @@ import javax.inject.Singleton
 /**
  * YOLO 감지 결과를 한국어 음성 경고 문장으로 변환합니다. (T071)
  *
- * 변환 예시:
- *   dangerLevel=0.9, CENTER, 1.5m, "사람" → "위험! 전방 1미터 앞에 사람"
- *   dangerLevel=0.6, LEFT,   4m,   "자전거" → "왼쪽 약 4미터 앞에 자전거"
- *   dangerLevel=0.5, RIGHT,  null, "볼라드" → "오른쪽 볼라드"
+ * 변환 예시 (spec.md: 장애물 설명 + 권장 행동):
+ *   CENTER, 1.5m, "사람", "멈추세요"        → "위험! 전방 1미터 앞에 사람, 멈추세요"
+ *   LEFT,   4m,   "자전거", "오른쪽으로 이동하세요" → "왼쪽 약 4미터 앞에 자전거, 오른쪽으로 이동하세요"
+ *   RIGHT,  null, "볼라드", null            → "오른쪽 볼라드"
  */
 @Singleton
 class DetectionToSpeechConverter @Inject constructor() {
 
-    fun convert(obj: DetectedObject): String {
+    /**
+     * @param suggestedAction 권장 회피 행동(예: "오른쪽으로 이동하세요", "멈추세요").
+     *   null/공백이면 장애물 설명만 읽는다.
+     */
+    fun convert(obj: DetectedObject, suggestedAction: String? = null): String {
         val prefix = urgencyPrefix(obj)
         val direction = directionText(obj.relativeDirection)
         val distance = distanceText(obj.estimatedDistance)
-        return "${prefix}${direction} ${distance}${obj.className}".trimEnd()
+        val description = "${prefix}${direction} ${distance}${obj.className}".trimEnd()
+        return if (suggestedAction.isNullOrBlank()) description
+        else "$description, $suggestedAction"
     }
 
     private fun urgencyPrefix(obj: DetectedObject): String = when {

@@ -35,6 +35,11 @@ class VoiceInputService @Inject constructor(
      * "목적지를 말씀해주세요" 안내 후 TTS 완료를 기다렸다가 음성 인식을 시작합니다.
      */
     fun listenForDestination(): Flow<VoiceInputResult> = flow {
+        // 이전 TTS(예: 로그인 완료 안내)가 끝날 때까지 기다린 후 말함
+        // 큐에 쌓인 메시지도 모두 소진되길 기다림
+        textToSpeechService.isSpeaking.first { !it }
+        delay(300)
+
         textToSpeechService.speak("목적지를 말씀해주세요")
 
         // TTS 시작 대기

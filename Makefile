@@ -1,4 +1,8 @@
-.PHONY: dev full setup down down-prod logs ps prod
+.PHONY: dev full setup down down-prod logs ps prod backend
+
+# 백엔드 서버 실행 (.env 자동 로드)
+backend:
+	cd backend && ./mvnw spring-boot:run
 
 # 개발: postgres + redis + OSRM 데모 프록시 (데이터 불필요)
 dev:

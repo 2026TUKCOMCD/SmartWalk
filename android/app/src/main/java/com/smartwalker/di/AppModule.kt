@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.firebase.auth.FirebaseAuth
 import com.smartwalker.BuildConfig
 import com.smartwalker.data.local.AppDatabase
 import com.smartwalker.data.local.dao.DestinationDao
@@ -22,6 +23,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -47,11 +50,16 @@ object AppModule {
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
             .addInterceptor { chain ->
-                val request = chain.request().newBuilder()
-                    // Add default user ID for demo (in production, use real auth)
-                    .addHeader("X-User-Id", "00000000-0000-0000-0000-000000000001")
-                    .build()
-                chain.proceed(request)
+                val token = runBlocking {
+                    try {
+                        FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token ?: ""
+                    } catch (e: Exception) { "" }
+                }
+                val requestBuilder = chain.request().newBuilder()
+                if (token.isNotEmpty()) {
+                    requestBuilder.header("Authorization", "Bearer $token")
+                }
+                chain.proceed(requestBuilder.build())
             }
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

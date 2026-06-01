@@ -24,9 +24,15 @@ class PositionKalmanFilter {
 
     private var initialized = false
 
+    // GPS 이상치 게이팅: 연속 거절 횟수. 너무 오래 거절하면 실제 점프로 간주.
+    private var consecutiveRejects = 0
+
     val currentLat: Double get() = lat
     val currentLng: Double get() = lng
     val isInitialized: Boolean get() = initialized
+
+    /** correct() 결과 — 호출부 로깅/디버그용. */
+    enum class CorrectionResult { ACCEPTED, REJECTED_OUTLIER, FORCED_REACQUIRE }
 
     /**
      * KF 불확실성(분산)을 미터 단위 정확도로 변환.
@@ -41,6 +47,7 @@ class PositionKalmanFilter {
         this.pLat = INIT_P
         this.pLng = INIT_P
         this.initialized = true
+        this.consecutiveRejects = 0
         Log.d(TAG, "KF initialized: ($lat, $lng)")
     }
 
@@ -79,9 +86,36 @@ class PositionKalmanFilter {
      * @param measLng       측정 경도
      * @param accuracyMeters 측정 정확도 (m), Android Location.accuracy 값 사용
      */
-    fun correct(measLat: Double, measLng: Double, accuracyMeters: Float) {
+    fun correct(measLat: Double, measLng: Double, accuracyMeters: Float): CorrectionResult {
+        // ── 이상치 게이팅 ──
+        // 현재 추정과 측정의 불일치(innovation, m)가 예측 불확실성 대비 과도하면
+        // urban canyon 멀티패스로 간주하고 거절한다. 단 연속 거절이 길어지면
+        // 실제 점프(터널 탈출·GPS 재획득)일 수 있으므로 측정값으로 재초기화한다.
+        val cosLat = cos(Math.toRadians(lat))
+        val dNorthM = (measLat - lat) * METERS_PER_DEG_LAT
+        val dEastM = (measLng - lng) * METERS_PER_DEG_LAT * cosLat
+        val innovationM = sqrt(dNorthM * dNorthM + dEastM * dEastM)
+
+        val predStdM = sqrt(pLat) * METERS_PER_DEG_LAT
+        val measStdM = accuracyMeters.toDouble().coerceAtLeast(1.0)
+        val gateM = (GATE_SIGMA * sqrt(predStdM * predStdM + measStdM * measStdM))
+            .coerceAtLeast(GATE_FLOOR_M)
+
+        if (innovationM > gateM) {
+            consecutiveRejects++
+            if (consecutiveRejects < MAX_CONSECUTIVE_REJECTS) {
+                Log.w(TAG, "GPS 이상치 거절: innovation=%.1fm > gate=%.1fm (#%d)".format(
+                    innovationM, gateM, consecutiveRejects))
+                return CorrectionResult.REJECTED_OUTLIER
+            }
+            Log.w(TAG, "GPS 지속 불일치(%d회) → 측정값으로 재획득".format(consecutiveRejects))
+            initialize(measLat, measLng)
+            return CorrectionResult.FORCED_REACQUIRE
+        }
+        consecutiveRejects = 0
+
         // 측정 노이즈 공분산 R = (accuracy_deg)^2
-        val accDeg = accuracyMeters.toDouble() / METERS_PER_DEG_LAT
+        val accDeg = measStdM / METERS_PER_DEG_LAT
         val r = accDeg * accDeg
 
         // Kalman Gain
@@ -97,6 +131,23 @@ class PositionKalmanFilter {
         pLng = (1.0 - kLng) * pLng
 
         Log.d(TAG, "KF correct: meas=($measLat, $measLng) acc=${accuracyMeters}m K=($kLat) → ($lat, $lng)")
+        return CorrectionResult.ACCEPTED
+    }
+
+    /**
+     * 맵 매칭 소프트 보정: 상태를 경로상의 목표점으로 [gain]만큼 당긴다.
+     *
+     * 공분산을 의도적으로 줄이지 않는다 — 경로 스냅은 실제 측정이 아닌 사전 제약(prior)이므로,
+     * 이를 측정처럼 다뤄 P를 축소하면 P가 0으로 붕괴해 이후 GPS 보정이 막히고
+     * 게이팅이 정상 측정을 거절하게 된다. 횡방향만 부드럽게 당기는 무해한 이동으로 처리.
+     *
+     * @param gain 0~1, 한 번에 당기는 비율. 작을수록 부드럽다.
+     */
+    fun nudgeToward(targetLat: Double, targetLng: Double, gain: Double) {
+        if (!initialized) return
+        val g = gain.coerceIn(0.0, 1.0)
+        lat += g * (targetLat - lat)
+        lng += g * (targetLng - lng)
     }
 
     /**
@@ -154,5 +205,14 @@ class PositionKalmanFilter {
 
         /** VO 예측의 기본 불확실성 배율 (PDR STEP_UNCERTAINTY의 2배) */
         private const val VO_UNCERTAINTY_FACTOR = 0.30
+
+        /** 이상치 게이팅: innovation이 (예측+측정) 표준편차의 이 배수를 넘으면 거절 */
+        private const val GATE_SIGMA = 3.0
+
+        /** 게이트 하한(m): P가 작아도 이 거리 이내 측정은 항상 수용 (과도한 거절 방지) */
+        private const val GATE_FLOOR_M = 10.0
+
+        /** 연속 거절이 이 횟수에 도달하면 실제 점프로 보고 측정값으로 재초기화 */
+        private const val MAX_CONSECUTIVE_REJECTS = 5
     }
 }

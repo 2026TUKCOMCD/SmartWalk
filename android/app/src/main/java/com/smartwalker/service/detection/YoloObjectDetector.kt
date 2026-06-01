@@ -366,27 +366,47 @@ class YoloObjectDetector @Inject constructor(
 
     companion object {
         private const val TAG = "YoloObjectDetector"
-        private const val MODEL_FILE_NAME = "best_float16.tflite"
+        private const val MODEL_FILE_NAME = "yolov8n.tflite"
         private const val LABELS_FILE_NAME = "labels.txt"
         private const val MODEL_INPUT_SIZE = 640
         private const val CONFIDENCE_THRESHOLD = 0.40f
         private const val NMS_THRESHOLD = 0.45f
         private const val MAX_DETECTIONS = 20
 
-        // 학습한 6개 클래스 기본 라벨 (labels.txt 로드 실패 시 폴백)
+        // COCO 80 클래스 (labels.txt 로드 실패 시 폴백). assets/labels.txt 와 동일해야 한다.
         private val COCO_LABELS = listOf(
-            "traffic_light_red", "traffic_light_green", "crosswalk",
-            "obstacle", "stairs", "tactile_paving"
+            "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck",
+            "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench",
+            "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra",
+            "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis",
+            "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard",
+            "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon",
+            "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog",
+            "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "dining table",
+            "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave",
+            "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors",
+            "teddy bear", "hair drier", "toothbrush"
         )
 
-        // 한국어 라벨 매핑
+        // 보행 안전 관련 COCO 클래스의 한국어 매핑. 매핑에 없는 클래스는 영어명 그대로
+        // 반환되며 ObstacleAlertService.ALERT_WHITELIST 에서 걸러진다.
         private val KOREAN_LABELS = mapOf(
-            "traffic_light_red"   to "빨간 신호등",
-            "traffic_light_green" to "초록 신호등",
-            "crosswalk"           to "횡단보도",
-            "obstacle"            to "장애물",
-            "stairs"              to "계단",
-            "tactile_paving"      to "점자블록"
+            "person"        to "사람",
+            "bicycle"       to "자전거",
+            "car"           to "자동차",
+            "motorcycle"    to "오토바이",
+            "bus"           to "버스",
+            "train"         to "기차",
+            "truck"         to "트럭",
+            "traffic light" to "신호등",
+            "fire hydrant"  to "소화전",
+            "stop sign"     to "정지 표지판",
+            "parking meter" to "주차 미터기",
+            "bench"         to "벤치",
+            "dog"           to "개",
+            "cat"           to "고양이",
+            "potted plant"  to "화분",
+            "chair"         to "의자"
         )
     }
 }

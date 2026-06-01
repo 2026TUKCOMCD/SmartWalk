@@ -37,8 +37,10 @@ public class NominatimClient {
                 .append("/search?q=").append(encodedQuery)
                 .append("&format=json")
                 .append("&addressdetails=1")
+                .append("&namedetails=1")
+                .append("&accept-language=ko")
                 .append("&limit=").append(limit)
-                .append("&countrycodes=kr"); // Limit to Korea
+                .append("&countrycodes=kr");
 
         // 위치가 있으면 viewbox로 주변 50km 정도 편향(bias)을 줌 (더 가까운 결과 우선)
         if (lat != null && lng != null) {
@@ -203,19 +205,30 @@ public class NominatimClient {
     //Nominatim 원본 응답(JSON 배열)에서 장소의 이름을 추출하는 함수
     @SuppressWarnings("unchecked")
     private String extractName(Map<String, Object> result) {
-        // Try to get a meaningful name from address details
+        // 1순위: namedetails의 한국어 이름
+        Map<String, String> nameDetails = (Map<String, String>) result.get("namedetails");
+        if (nameDetails != null) {
+            String koName = nameDetails.get("name:ko");
+            if (koName != null && !koName.isBlank()) return koName;
+            String name = nameDetails.get("name");
+            if (name != null && !name.isBlank()) return name;
+        }
+
+        // 2순위: 최상위 name 필드 (장소 고유명)
+        String topName = (String) result.get("name");
+        if (topName != null && !topName.isBlank()) return topName;
+
+        // 3순위: address 서브필드
         Map<String, String> address = (Map<String, String>) result.get("address");
         if (address != null) {
-            // Priority order for name extraction
-            String[] keys = {"amenity", "tourism", "shop", "building", "road", "neighbourhood"};
+            String[] keys = {"amenity", "tourism", "shop", "building", "road", "neighbourhood", "suburb"};
             for (String key : keys) {
-                if (address.containsKey(key) && address.get(key) != null) {
-                    return address.get(key);
-                }
+                String val = address.get(key);
+                if (val != null && !val.isBlank()) return val;
             }
         }
 
-        // Fall back to display_name, but try to extract first meaningful part
+        // 최후: display_name 첫 번째 토큰
         String displayName = (String) result.get("display_name");
         if (displayName != null && displayName.contains(",")) {
             return displayName.split(",")[0].trim();
