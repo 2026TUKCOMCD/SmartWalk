@@ -108,6 +108,29 @@ val streamUrl = BuildConfig.GLASS_STREAM_URL
 
 ---
 
+## Step 5 (선택): 프레임 → MP4 동영상 변환
+
+```bash
+# 최신 세션을 동영상으로 변환 (frames.csv 의 실제 타임스탬프 기반)
+python tools/frames_to_video.py sessions/$(ls sessions | sort | tail -1)
+
+# 고정 FPS 지정 (기본 15)
+python tools/frames_to_video.py sessions/<id> --fps 10
+
+# 출력 파일명 변경
+python tools/frames_to_video.py sessions/<id> --out out.mp4
+```
+
+출력: `sessions/<id>/preview.mp4`
+
+- `frames.csv` 가 있으면 촬영 간격을 그대로 재현 (가변 FPS)
+- `frames.csv` 가 없거나 `--force-fps` 지정 시 고정 FPS 사용
+- 의존: `ffmpeg` (PATH에 있어야 함)
+  - Windows: `winget install ffmpeg`
+  - macOS: `brew install ffmpeg`
+
+---
+
 ## TFLite 에뮬레이터 설정
 
 에뮬레이터는 x86_64 아키텍처이므로 GPU delegate 를 끄고 실행:

@@ -15,8 +15,8 @@
 -keep class * implements com.google.gson.JsonDeserializer
 
 # Keep data classes
--keep class com.navblind.data.remote.** { *; }
--keep class com.navblind.domain.model.** { *; }
+-keep class com.smartwalker.data.remote.** { *; }
+-keep class com.smartwalker.domain.model.** { *; }
 
 # Keep ARCore
 -keep class com.google.ar.** { *; }

@@ -1,0 +1,6 @@
+traffic_light_red
+traffic_light_green
+crosswalk
+obstacle
+stairs
+tactile_paving

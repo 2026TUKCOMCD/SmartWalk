@@ -3,7 +3,6 @@ package com.navblind.server.service;
 import com.navblind.server.dto.RouteDto.*;
 import com.navblind.server.entity.NavigationSession;
 import com.navblind.server.entity.User;
-import com.navblind.server.integration.OsrmClient;
 import com.navblind.server.integration.OsrmClient.OsrmRouteResult;
 import com.navblind.server.repository.NavigationSessionRepository;
 import com.navblind.server.repository.UserRepository;
@@ -22,7 +21,7 @@ import java.util.UUID;
 @Slf4j
 public class NavigationService {
 
-    private final OsrmClient osrmClient;
+    private final RouteCacheService routeCacheService;
     private final NavigationSessionRepository sessionRepository;
     private final UserRepository userRepository;
 
@@ -44,8 +43,8 @@ public class NavigationService {
             log.info("Cancelled existing active session: {}", session.getId());
         });
 
-        // Call OSRM for route calculation
-        OsrmRouteResult osrmResult = osrmClient.getRoute(
+        // Call OSRM (via cache) for route calculation
+        OsrmRouteResult osrmResult = routeCacheService.getRoute(
                 request.getOriginLat(), request.getOriginLng(),
                 request.getDestLat(), request.getDestLng()
         );
@@ -90,8 +89,8 @@ public class NavigationService {
             throw new IllegalStateException("Session is not active");
         }
 
-        // Call OSRM for new route from current position to destination
-        OsrmRouteResult osrmResult = osrmClient.getRoute(
+        // Reroute bypasses cache (user deviated — new start point differs from original)
+        OsrmRouteResult osrmResult = routeCacheService.getRoute(
                 request.getCurrentLat(), request.getCurrentLng(),
                 session.getDestLat(), session.getDestLng()
         );

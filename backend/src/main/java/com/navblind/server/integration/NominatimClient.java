@@ -37,8 +37,10 @@ public class NominatimClient {
                 .append("/search?q=").append(encodedQuery)
                 .append("&format=json")
                 .append("&addressdetails=1")
+                .append("&namedetails=1")
+                .append("&accept-language=ko")
                 .append("&limit=").append(limit)
-                .append("&countrycodes=kr"); // Limit to Korea
+                .append("&countrycodes=kr");
 
         // 위치가 있으면 viewbox로 주변 50km 정도 편향(bias)을 줌 (더 가까운 결과 우선)
         if (lat != null && lng != null) {
@@ -117,6 +119,54 @@ public class NominatimClient {
                 });
     }
 
+    //좌표를 주소로 변환 (역지오코딩)
+    @SuppressWarnings("unchecked")
+    public String reverseGeocode(double lat, double lng) {
+        String url = nominatimProperties.baseUrl()
+                + "/reverse?lat=" + lat
+                + "&lon=" + lng
+                + "&format=json&addressdetails=1";
+
+        try {
+            WebClient webClient = webClientBuilder.build();
+            Map<String, Object> response = webClient.get()
+                    .uri(URI.create(url))
+                    .header("User-Agent", "NavBlind/1.0")
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .timeout(Duration.ofMillis(nominatimProperties.timeout()))
+                    .block();
+
+            if (response == null) return null;
+
+            Map<String, String> address = (Map<String, String>) response.get("address");
+            if (address != null) {
+                String road = address.get("road");
+                String neighbourhood = address.get("neighbourhood");
+                String suburb = address.get("suburb");
+                String city = address.get("city");
+                if (city == null) city = address.get("town");
+                if (city == null) city = address.get("county");
+
+                StringBuilder sb = new StringBuilder();
+                if (city != null) sb.append(city);
+                if (suburb != null) { if (!sb.isEmpty()) sb.append(" "); sb.append(suburb); }
+                if (neighbourhood != null) { if (!sb.isEmpty()) sb.append(" "); sb.append(neighbourhood); }
+                if (road != null) { if (!sb.isEmpty()) sb.append(" "); sb.append(road); }
+                if (!sb.isEmpty()) return sb.toString();
+            }
+
+            String displayName = (String) response.get("display_name");
+            if (displayName != null && displayName.contains(",")) {
+                return displayName.split(",")[0].trim();
+            }
+            return displayName;
+        } catch (Exception e) {
+            log.error("Error calling Nominatim reverse: {}", e.getMessage());
+            return null;
+        }
+    }
+
     //Nominatim 원본 응답(JSON 배열)을 DTO로 변환하는 함수
     private List<SearchResult> parseNominatimResults(List<Map<String, Object>> results, Double userLat, Double userLng) {
         List<SearchResult> searchResults = new ArrayList<>();
@@ -155,19 +205,30 @@ public class NominatimClient {
     //Nominatim 원본 응답(JSON 배열)에서 장소의 이름을 추출하는 함수
     @SuppressWarnings("unchecked")
     private String extractName(Map<String, Object> result) {
-        // Try to get a meaningful name from address details
+        // 1순위: namedetails의 한국어 이름
+        Map<String, String> nameDetails = (Map<String, String>) result.get("namedetails");
+        if (nameDetails != null) {
+            String koName = nameDetails.get("name:ko");
+            if (koName != null && !koName.isBlank()) return koName;
+            String name = nameDetails.get("name");
+            if (name != null && !name.isBlank()) return name;
+        }
+
+        // 2순위: 최상위 name 필드 (장소 고유명)
+        String topName = (String) result.get("name");
+        if (topName != null && !topName.isBlank()) return topName;
+
+        // 3순위: address 서브필드
         Map<String, String> address = (Map<String, String>) result.get("address");
         if (address != null) {
-            // Priority order for name extraction
-            String[] keys = {"amenity", "tourism", "shop", "building", "road", "neighbourhood"};
+            String[] keys = {"amenity", "tourism", "shop", "building", "road", "neighbourhood", "suburb"};
             for (String key : keys) {
-                if (address.containsKey(key) && address.get(key) != null) {
-                    return address.get(key);
-                }
+                String val = address.get(key);
+                if (val != null && !val.isBlank()) return val;
             }
         }
 
-        // Fall back to display_name, but try to extract first meaningful part
+        // 최후: display_name 첫 번째 토큰
         String displayName = (String) result.get("display_name");
         if (displayName != null && displayName.contains(",")) {
             return displayName.split(",")[0].trim();

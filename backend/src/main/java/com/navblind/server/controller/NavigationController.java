@@ -2,6 +2,7 @@ package com.navblind.server.controller;
 
 import com.navblind.server.dto.RouteDto.*;
 import com.navblind.server.entity.NavigationSession;
+import com.navblind.server.integration.KakaoLocalClient;
 import com.navblind.server.integration.OsrmClient;
 import com.navblind.server.service.NavigationService;
 import jakarta.validation.Valid;
@@ -23,6 +24,7 @@ public class NavigationController {
 
     private final NavigationService navigationService;
     private final OsrmClient osrmClient;
+    private final KakaoLocalClient kakaoLocalClient;
 
     /**
      * 경로 탐색 (POST /v1/navigation/route)
@@ -143,10 +145,29 @@ public class NavigationController {
                 .snappedLng(result.getSnappedLng())
                 .distance(result.getDistance())
                 .roadName(result.getRoadName())
-                .isOnRoad(result.getDistance() < 15.0) // 15m 이내면 도로 위로 판단
+                .isOnRoad(result.getDistance() < 15.0)
                 .build();
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 좌표를 주소로 변환 (GET /v1/navigation/reverse)
+     * "지금 어디야" 음성 명령에 응답하는 데 사용됩니다.
+     */
+    @GetMapping("/reverse")
+    public ResponseEntity<ReverseGeocodeResponse> reverseGeocode(
+            @RequestParam double lat,
+            @RequestParam double lng) {
+
+        log.debug("Reverse geocode request: {}, {}", lat, lng);
+        String locationName = kakaoLocalClient.reverseGeocode(lat, lng);
+
+        if (locationName == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(new ReverseGeocodeResponse(locationName));
     }
 
     private NavigationSessionResponse toSessionResponse(NavigationSession session) {
@@ -188,6 +209,11 @@ public class NavigationController {
         private String completedAt;
         private Integer rerouteCount;
     }
+
+    /**
+     * Reverse Geocode API 응답 DTO
+     */
+    public record ReverseGeocodeResponse(String locationName) {}
 
     /**
      * Nearest API 응답 DTO

@@ -85,10 +85,10 @@ specs/001-smartglass-nav-system/  # Documentation
 ### Android
 ```bash
 cd android
-./gradlew assembleDebug          # Build debug APK
-./gradlew testDebugUnitTest      # Run unit tests
-./gradlew connectedAndroidTest   # Run instrumented tests
-./gradlew lintDebug              # Lint check
+gradlew.bat assembleDebug          # Build debug APK
+gradlew.bat testDebugUnitTest      # Run unit tests
+gradlew.bat connectedAndroidTest   # Run instrumented tests
+gradlew.bat lintDebug              # Lint check
 ```
 
 ### Backend
@@ -109,10 +109,16 @@ pio device monitor               # Serial monitor
 
 ### Docker
 ```bash
-cd docker
-docker-compose up -d             # Start all services
-docker-compose logs -f backend   # View logs
-docker-compose down              # Stop all
+make dev          # 개발: postgres + redis + OSRM 데모 프록시
+make full         # 풀스택: 실제 OSRM + Nominatim 포함 (setup 선행 필요)
+make setup        # OSRM 데이터 준비 (최초 1회, 20~40분)
+make down         # 개발 환경 중지
+make logs         # 로그 스트림
+make ps           # 컨테이너 상태
+
+make prod         # 프로덕션 기동 (OSRM + Nominatim 포함)
+make down-prod    # 프로덕션 중지
+make logs-prod    # 프로덕션 로그
 ```
 
 ## Code Style
