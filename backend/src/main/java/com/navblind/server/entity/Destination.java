@@ -52,7 +52,7 @@ public class Destination {
     @Column(nullable = false, precision = 11)
     private Double longitude;
 
-    //장소의 주소를 나타냄(null 가능, Nominatim을 통해 구할 수 있음)
+    //장소의 주소를 나타냄(null 가능, Kakao Local API를 통해 구할 수 있음)
     @Column(length = 500)
     private String address;
 

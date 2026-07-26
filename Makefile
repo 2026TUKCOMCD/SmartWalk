@@ -8,8 +8,8 @@ backend:
 dev:
 	docker compose -f docker/docker-compose.yml --profile dev up -d
 
-# 풀스택 개발: postgres + redis + 실제 OSRM + Nominatim + nginx
-# 주의: docker-setup 먼저 실행 필요 (OSRM 데이터), Nominatim 최초 기동 ~10분 소요
+# 풀스택 개발: postgres + redis + 실제 OSRM + nginx
+# 주의: docker-setup 먼저 실행 필요 (OSRM 데이터)
 full:
 	docker compose -f docker/docker-compose.yml --profile full up -d
 
@@ -31,7 +31,7 @@ ps:
 
 # ─── 프로덕션 ──────────────────────────────────────────────
 
-# 프로덕션 기동 (OSRM + Nominatim 포함)
+# 프로덕션 기동 (OSRM 포함)
 prod:
 	docker compose -f docker/docker-compose.prod.yml up -d
 

@@ -87,7 +87,7 @@ graph TB
             DestRepo["DestinationRepository<br>(JPA)"]
             SessionRepo["NavigationSessionRepository<br>(JPA)"]
             OsrmClient["OsrmClient<br><<requires>> OSRM HTTP API"]
-            NominatimClient["NominatimClient<br><<requires>> Nominatim HTTP API"]
+            KakaoLocalClient["KakaoLocalClient<br><<requires>> Kakao Local REST API"]
             RedisCache["RedisCache<br><<requires>> Redis"]
         end
 
@@ -99,11 +99,11 @@ graph TB
 
     subgraph ExtSvc["외부 서비스 (self-hosted)"]
         OSRM["OSRM Engine<br>보행자 경로 탐색"]
-        Nominatim["Nominatim<br>Geocoding / POI 검색"]
     end
 
     subgraph ExtCloud["외부 클라우드"]
         Firebase["Firebase Auth<br>토큰 검증"]
+        Kakao["Kakao Local API<br>Geocoding / POI 검색"]
     end
 
     NavCtrl -->|"calls"| NavSvc
@@ -115,7 +115,7 @@ graph TB
     NavSvc -->|"uses"| RedisCache
     UserSvc -->|"uses"| UserRepo
     DestSvc -->|"uses"| DestRepo
-    DestSvc -->|"uses"| NominatimClient
+    DestSvc -->|"uses"| KakaoLocalClient
 
     UserRepo -->|"JDBC"| PG
     DestRepo -->|"JDBC"| PG
@@ -123,7 +123,7 @@ graph TB
     RedisCache -->|"Redis Protocol"| Redis
 
     OsrmClient -.->|"HTTP"| OSRM
-    NominatimClient -.->|"HTTP"| Nominatim
+    KakaoLocalClient -.->|"HTTPS"| Kakao
     AuthCtrl -.->|"HTTPS<br>token verify"| Firebase
 ```
 
@@ -163,11 +163,11 @@ graph LR
 
     subgraph SelfHosted["Self-hosted 서비스"]
         OSRMSvc["OSRM<br>(보행자 경로)"]
-        NominatimSvc["Nominatim<br>(Geocoding)"]
     end
 
     subgraph CloudSvc["외부 클라우드 서비스"]
         FirebaseAuth["Firebase Auth"]
+        KakaoAPI["Kakao Local API<br>(Geocoding)"]
     end
 
     %% 하드웨어 → 모바일
@@ -196,7 +196,7 @@ graph LR
 
     %% 백엔드 → Self-hosted
     SpringApp -.->|"HTTP<br>(route API)"| OSRMSvc
-    SpringApp -.->|"HTTP<br>(geocoding)"| NominatimSvc
+    SpringApp -.->|"HTTPS<br>(geocoding)"| KakaoAPI
 
     %% 백엔드 → 클라우드
     SpringApp -.->|"HTTPS<br>(token verify)"| FirebaseAuth
@@ -217,6 +217,6 @@ graph LR
 | NavigationController | `/v1/navigation/*` REST | NavigationService |
 | NavigationService | 경로 계산 결과 | OsrmClient, SessionRepository, Redis |
 | OsrmClient | Route 객체 | OSRM HTTP API |
-| NominatimClient | POI 검색 결과 | Nominatim HTTP API |
+| KakaoLocalClient | POI 검색 결과 | Kakao Local REST API |
 | PostgreSQL | JDBC | 디스크 스토리지 |
 | Redis | Cache API | 메모리 |

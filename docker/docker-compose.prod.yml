@@ -43,28 +43,6 @@ services:
     networks:
       - backend
 
-  nominatim:
-    image: mediagis/nominatim:4.4
-    container_name: navblind-nominatim
-    restart: unless-stopped
-    environment:
-      PBF_URL: https://download.geofabrik.de/asia/south-korea-latest.osm.pbf
-      REPLICATION_URL: https://download.geofabrik.de/asia/south-korea-updates/
-      NOMINATIM_PASSWORD: ${NOMINATIM_PASSWORD}
-      IMPORT_STYLE: full
-    volumes:
-      - nominatim_data:/var/lib/postgresql/14/main
-      - nominatim_flatnode:/nominatim/flatnode
-    shm_size: 1gb
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 600s
-    networks:
-      - backend
-
   backend:
     image: navblind-backend:${APP_VERSION:-latest}
     container_name: navblind-backend
@@ -77,7 +55,6 @@ services:
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD}
       OSRM_BASE_URL: http://osrm:5000
-      NOMINATIM_BASE_URL: http://nominatim:8080
       FIREBASE_DISABLED: "false"
     depends_on:
       postgres:
@@ -123,8 +100,6 @@ volumes:
   postgres_data:
   redis_data:
   osrm_data:
-  nominatim_data:
-  nominatim_flatnode:
   certbot_webroot:
 
 networks:

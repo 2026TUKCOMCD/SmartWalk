@@ -25,7 +25,7 @@ public class DestinationController {
 
     /**
      * 목적지 검색 (GET /v1/destinations/search)
-     * OSM Nominatim을 사용하여 장소를 검색합니다.
+     * Kakao Local API를 사용하여 장소를 검색합니다.
      */
     @GetMapping("/search")
     public ResponseEntity<SearchResponse> searchDestinations(

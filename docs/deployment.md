@@ -7,7 +7,7 @@
 | Docker | 24+ |
 | Docker Compose | 2.20+ |
 | 서버 OS | Ubuntu 22.04 LTS |
-| RAM | 최소 4 GB (OSRM + Nominatim 포함 시 8 GB) |
+| RAM | 최소 4 GB (OSRM 포함 시 6 GB) |
 | 디스크 | 최소 20 GB (한국 OSM 데이터 포함 시 50 GB) |
 
 ---
@@ -26,7 +26,6 @@ DOMAIN=smartwalker.example.com
 POSTGRES_USER=navblind
 POSTGRES_PASSWORD=<strong-password>
 REDIS_PASSWORD=<strong-password>
-NOMINATIM_PASSWORD=<strong-password>
 APP_VERSION=1.0.0
 ```
 
@@ -150,7 +149,6 @@ Android 앱에서 "기기 추가" → IP 주소 입력 후 페어링합니다.
 |--------|-----|
 | 백엔드 | `GET /actuator/health` |
 | Nginx | `GET /health` |
-| Nominatim | `GET http://nominatim:8080/status` |
 
 ---
 

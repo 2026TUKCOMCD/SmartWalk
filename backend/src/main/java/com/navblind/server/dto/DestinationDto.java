@@ -15,7 +15,7 @@ import java.util.UUID;
 //@Builder: 생성자를 통한 객체 생성과 다르게 필드 순서, 필요한 매개변수만 입력 등을 가능케 하는 빌더 코드를 자동으로 제작
 public class DestinationDto {
 
-    //Nominatim에서 검색한 결과(한 개)를 표현하는 DTO
+    //Kakao Local API에서 검색한 결과(한 개)를 표현하는 DTO
     @Data
     @NoArgsConstructor
     @AllArgsConstructor

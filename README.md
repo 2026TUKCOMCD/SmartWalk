@@ -69,7 +69,6 @@ npm run docker:setup
 # 이후 매번 — 실제 OSRM + postgres + redis 기동
 npm run docker:full
 ```
-> `docker:full` 프로파일은 Nominatim 컨테이너도 함께 띄우지만, 백엔드는 지오코딩/검색을 Kakao Local API로만 처리하므로(Nominatim 클라이언트는 미사용 dead code) 무시해도 됩니다.
 
 ### 기타
 ```bash

@@ -38,7 +38,7 @@
 | PostgreSQL DB | EC2 내 Docker 컨테이너 또는 AWS RDS | 데모용 소규모 인스턴스 |
 | Redis | EC2 내 Docker 컨테이너 | 세션 캐시 |
 | OSRM 경로 서버 | EC2 내 Docker 컨테이너 | 데모 지역 OSM 데이터만 로드 |
-| Nominatim POI 검색 | EC2 내 Docker 컨테이너 | 데모 지역 한정 |
+| Kakao Local API | 외부 REST 호출 (인프라 불필요) | POI 검색·지오코딩 |
 | Nginx 리버스 프록시 | EC2 내 Docker 컨테이너 | REST + MJPEG 프록시 통합 |
 
 ---
@@ -80,7 +80,6 @@ flowchart TD
         NG["Nginx<br>리버스 프록시"]
         SB["Spring Boot<br>API 서버"]
         OS["OSRM<br>경로 계산"]
-        NM["Nominatim<br>POI 검색"]
         RD["Redis<br>세션 캐시"]
         PG["PostgreSQL<br>DB"]
     end
@@ -88,6 +87,8 @@ flowchart TD
     subgraph 모니터링
         PC["노트북<br>로그·콘솔 확인"]
     end
+
+    KK["Kakao Local API<br>(외부, REST)"]
 
     SG -->|"MJPEG 스트림 (HTTP)"| AP
     PH -->|"REST API<br>음성입력·경로요청"| AP
@@ -97,7 +98,7 @@ flowchart TD
 
     NG --> SB
     SB --> OS
-    SB --> NM
+    SB -->|"인터넷"| KK
     SB --> RD
     SB --> PG
 

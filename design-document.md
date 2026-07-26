@@ -163,9 +163,9 @@ classDiagram
         +nearest(lat, lng) NearestResponse
     }
 
-    class NominatimClient {
+    class KakaoLocalClient {
         +search(query, lat, lng, limit) List
-        +reverse(lat, lng) PlaceInfo
+        +reverseGeocode(lat, lng) String
     }
 
     class NavigationSessionRepository
@@ -175,7 +175,7 @@ classDiagram
     DestinationController --> DestinationService
     NavigationService --> OsrmClient
     NavigationService --> NavigationSessionRepository
-    DestinationService --> NominatimClient
+    DestinationService --> KakaoLocalClient
     DestinationService --> DestinationRepository
 ```
 
@@ -399,7 +399,7 @@ flowchart TD
 
 | 메서드 | URL | 요청 | 응답 | 설명 |
 |--------|-----|------|------|------|
-| `GET`  | `/destinations/search` | `query`, `lat`, `lng`, `limit` | `SearchResponse` | POI 검색 (Nominatim) |
+| `GET`  | `/destinations/search` | `query`, `lat`, `lng`, `limit` | `SearchResponse` | POI 검색 (Kakao Local) |
 | `GET`  | `/destinations` | `userId` (header) | `Map<String, Object>` | 저장된 목적지 목록 |
 | `POST` | `/destinations` | `userId` (header), 바디 | `DestinationResponse` | 목적지 저장 |
 | `GET`  | `/destinations/{id}` | `userId` (header) | `DestinationResponse` | 목적지 상세 |

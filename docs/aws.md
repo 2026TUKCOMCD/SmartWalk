@@ -3,7 +3,7 @@
 ## 아키텍처 요약
 
 단일 EC2 인스턴스에 기존 `docker-compose.prod.yml`을 그대로 올립니다.
-Nominatim / OSRM은 관리형 서비스가 없으므로 어차피 자체 호스팅이 필수입니다.
+OSRM은 관리형 서비스가 없으므로 자체 호스팅이 필수입니다(장소 검색/지오코딩은 Kakao Local API를 REST로 호출하므로 별도 인프라 불필요).
 
 ```
 인터넷
@@ -14,8 +14,7 @@ Nominatim / OSRM은 관리형 서비스가 없으므로 어차피 자체 호스�
                  ├── backend (Spring Boot)
                  ├── postgres
                  ├── redis
-                 ├── osrm
-                 └── nominatim
+                 └── osrm
                  │
                 [EBS 60 GB gp3]
 ```
@@ -26,7 +25,7 @@ Nominatim / OSRM은 관리형 서비스가 없으므로 어차피 자체 호스�
 
 | 항목 | On-Demand | 1년 Savings Plan | 비고 |
 |------|-----------|-----------------|------|
-| t3.large (8 GB) | ~$60/월 | **~$38/월** | 백엔드+DB+OSRM+Nominatim |
+| t3.large (8 GB) | ~$60/월 | **~$38/월** | 백엔드+DB+OSRM |
 | EBS gp3 60 GB | ~$5/월 | $5/월 | 데이터 볼륨 |
 | Elastic IP | $0 | $0 | 인스턴스에 연결 시 무료 |
 | 데이터 전송 | ~$1/월 | ~$1/월 | 100 GB 이하 추정 |
@@ -57,7 +56,7 @@ AWS 콘솔 → EC2 → Launch Instance:
 | 80 | TCP | 0.0.0.0/0 | HTTP (certbot 인증용) |
 | 443 | TCP | 0.0.0.0/0 | HTTPS |
 
-> OSRM(5000), Nominatim(8080), PostgreSQL(5432) 포트는 외부에 열지 않습니다. 컨테이너 간 내부 네트워크로만 통신합니다.
+> OSRM(5000), PostgreSQL(5432) 포트는 외부에 열지 않습니다. 컨테이너 간 내부 네트워크로만 통신합니다.
 
 ---
 
@@ -93,7 +92,7 @@ sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 sudo usermod -aG docker ubuntu
 newgrp docker
 
-# Nominatim 초기 임포트용 스왑 (한국 데이터 임포트 시 ~4 GB 사용)
+# OSRM 데이터 전처리(osrm-extract 등, 한국 전역) 시 메모리 여유 확보용 스왑
 sudo fallocate -l 8G /swapfile
 sudo chmod 600 /swapfile
 sudo mkswap /swapfile
@@ -121,7 +120,6 @@ DOMAIN=api.yourdomain.com
 POSTGRES_USER=navblind
 POSTGRES_PASSWORD=<strong-password>
 REDIS_PASSWORD=<strong-password>
-NOMINATIM_PASSWORD=<strong-password>
 APP_VERSION=1.0.0
 ```
 

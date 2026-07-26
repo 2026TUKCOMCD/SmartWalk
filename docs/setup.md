@@ -47,8 +47,20 @@ sdk.dir=C\:\\android_dev\\Sdk
 
 ## 3. 백엔드 환경 설정
 
+```bash
+cp backend/.env.example backend/.env
+```
+
+`backend/.env` 수정 — Kakao Developers → 내 애플리케이션 → 앱 키 → REST API 키:
+
+```env
+KAKAO_API_KEY=발급받은_REST_API_키
+FIREBASE_DISABLED=false
+```
+
 Firebase Admin SDK 키가 `backend/smartwalker-firebase-adminsdk-key.json` 에 있는지 확인합니다.
 없으면 Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → JSON 키 다운로드 후 해당 위치에 저장.
+(로컬 개발 중 Firebase 없이 진행하려면 `FIREBASE_DISABLED=true` — X-User-Id 헤더로 인증 대체)
 
 ---
 
@@ -65,14 +77,16 @@ PostgreSQL(`5432`), Redis(`6379`) 가 뜨는지 확인:
 npm run docker:logs
 ```
 
-### OSRM + Nominatim 포함 (경로 탐색·장소 검색 기능 개발 시)
+### 전체 한국 OSRM 데이터 포함 (정밀 경로 탐색 기능 개발 시)
+
+> 장소 검색/지오코딩은 Kakao Local API(REST 호출)라 별도 인프라가 필요 없습니다 — 위 2단계에서 `KAKAO_API_KEY`만 설정하면 됩니다.
 
 **최초 1회** — 한국 OSM 데이터 다운로드 + OSRM 전처리 (20~40분 소요):
 ```bash
 npm run docker:setup
 ```
 
-**이후 매번** — 실제 OSRM + Nominatim + postgres + redis 기동:
+**이후 매번** — 실제 OSRM + postgres + redis 기동:
 ```bash
 npm run docker:full
 ```
@@ -83,7 +97,7 @@ npm run docker:full
 |--------|------------|------|
 | `docker:up` | postgres, redis | 기본 백엔드 개발 |
 | `docker:dev` | + osrm-demo(프록시) | 경로 API 형태 확인 |
-| `docker:full` | + 실제 osrm, nominatim, nginx | 풀스택 개발 |
+| `docker:full` | + 실제 osrm, nginx | 풀스택 개발 |
 
 ---
 

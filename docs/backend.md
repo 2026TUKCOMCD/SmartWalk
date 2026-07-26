@@ -5,7 +5,8 @@
 ### 사전 요구사항
 
 - JDK 21
-- Docker Desktop (PostgreSQL, Redis, OSRM, Nominatim 실행용)
+- Docker Desktop (PostgreSQL, Redis, OSRM 실행용)
+- Kakao REST API 키 (장소 검색/지오코딩용, `backend/.env`의 `KAKAO_API_KEY`)
 - Firebase Admin SDK 키 파일 (`setup.md` 참고)
 
 ### Firebase 키 배치
@@ -74,7 +75,7 @@ backend/src/main/java/com/navblind/server/
 ├── repository/     # JPA 리포지토리
 ├── entity/         # JPA 엔티티
 ├── dto/            # Request/Response DTO
-└── integration/    # OSRM, Nominatim 클라이언트
+└── integration/    # OSRM, Kakao Local 클라이언트
 ```
 
 ---
@@ -90,7 +91,7 @@ Base URL: `http://localhost:8080/v1`
 | PATCH | `/navigation/sessions/{id}` | 세션 상태 업데이트 |
 | GET | `/navigation/sessions` | 이동 기록 조회 |
 | GET | `/navigation/nearest` | 좌표 → 가장 가까운 도로 snap |
-| GET | `/destinations/search` | POI 검색 (Nominatim) |
+| GET | `/destinations/search` | POI 검색 (Kakao Local) |
 | GET | `/destinations` | 저장된 목적지 조회 |
 | POST | `/auth/verify` | Firebase 토큰 검증 |
 
@@ -112,7 +113,7 @@ Base URL: `http://localhost:8080/v1`
 | `REDIS_HOST` | `localhost` | Redis 호스트 |
 | `REDIS_PORT` | `6379` | Redis 포트 |
 | `OSRM_BASE_URL` | `http://localhost:5000` | OSRM 서버 |
-| `NOMINATIM_BASE_URL` | `http://localhost:8088` | Nominatim 서버 |
+| `KAKAO_API_KEY` | (없음, 필수) | Kakao Local REST API 키 — 장소 검색/역지오코딩 |
 | `FIREBASE_CREDENTIALS_PATH` | `smartwalker-firebase-adminsdk-key.json` | 키 파일 경로 |
 | `FIREBASE_DISABLED` | `false` | `true`면 Firebase 인증 건너뜀 |
 

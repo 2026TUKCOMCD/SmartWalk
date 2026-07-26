@@ -23,7 +23,7 @@ Auto-generated from feature plans. Last updated: 2026-01-30
 - **Database**: PostgreSQL 16
 - **Cache**: Redis 7
 - **Routing**: OSRM (self-hosted)
-- **Geocoding**: Nominatim (self-hosted, no rate limits)
+- **Geocoding/POI Search**: Kakao Local API
 
 ### Smart Glasses (Firmware)
 - **Platform**: ESP32-CAM
@@ -58,7 +58,7 @@ backend/                    # Spring Boot server (Java)
 │   ├── repository/        # JPA repositories
 │   ├── entity/            # JPA entities
 │   ├── dto/               # DTOs
-│   └── integration/       # OSRM, Nominatim clients
+│   └── integration/       # OSRM, Kakao Local clients
 
 smartglass/                 # ESP32-CAM firmware (C++)
 ├── src/
@@ -110,13 +110,13 @@ pio device monitor               # Serial monitor
 ### Docker
 ```bash
 make dev          # 개발: postgres + redis + OSRM 데모 프록시
-make full         # 풀스택: 실제 OSRM + Nominatim 포함 (setup 선행 필요)
+make full         # 풀스택: 실제 OSRM 포함 (setup 선행 필요)
 make setup        # OSRM 데이터 준비 (최초 1회, 20~40분)
 make down         # 개발 환경 중지
 make logs         # 로그 스트림
 make ps           # 컨테이너 상태
 
-make prod         # 프로덕션 기동 (OSRM + Nominatim 포함)
+make prod         # 프로덕션 기동 (OSRM 포함)
 make down-prod    # 프로덕션 중지
 make logs-prod    # 프로덕션 로그
 ```
@@ -149,7 +149,7 @@ Key endpoints:
 - `POST /v1/navigation/route` - Calculate pedestrian route
 - `POST /v1/navigation/reroute` - Recalculate after deviation
 - `GET /v1/destinations` - User's saved destinations
-- `GET /v1/destinations/search` - Search OSM POIs
+- `GET /v1/destinations/search` - Search places (Kakao Local API)
 
 ## Database Schema
 

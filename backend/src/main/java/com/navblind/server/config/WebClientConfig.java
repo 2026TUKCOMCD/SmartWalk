@@ -8,7 +8,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 WebClient 설정 클래스
 Spring WebFlux 기반의 non-blocking HTTP 클라이언트를 제공
 주요 목적:
-- OSRM, Nominatim 등 외부 API를 비동기(non-blocking) 방식으로 호출
+- OSRM, Kakao Local 등 외부 API를 비동기(non-blocking) 방식으로 호출
 - 요청 처리 중 I/O 대기 시 스레드가 블록되지 않도록 함
     → 제한된 스레드 풀(Event Loop)로도 높은 동시성을 처리 가능
 

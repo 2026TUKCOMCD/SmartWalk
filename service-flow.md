@@ -23,13 +23,14 @@ graph LR
             BE["⚙️ REST API 서버, Spring Boot 3.5"]
             DB["🗄 PostgreSQL 16, 사용자 · 세션 · 목적지"]
             CACHE["⚡ Redis 7, 세션 · 경로 캐시"]
-            ROUTING["🗺 OSRM + Nominatim, 경로 계산 · 지오코딩 (self-hosted)"]
+            ROUTING["🗺 OSRM, 경로 계산 (self-hosted)"]
         end
     end
 
     %% ── 외부 범위 ──
     subgraph EXT["── 외부 범위 ──"]
         FIREBASE["🔑 Firebase Auth, SMS 인증"]
+        KAKAO["📍 Kakao Local API, 지오코딩 · POI 검색"]
         ARCORE["📡 ARCore Geospatial API, Google VPS"]
         OSM["🗺 OpenStreetMap, 공개 지도 데이터"]
         ANDROID_API["🎤 Android STT / TTS API, 음성 인식 · 합성"]
@@ -45,6 +46,7 @@ graph LR
     BE --> CACHE
     BE --> ROUTING
     BE -->|SMS 인증| FIREBASE
+    BE -->|REST 호출| KAKAO
     ROUTING -->|지도 데이터| OSM
     APP -.->|VPS 위치| ARCORE
     APP -.->|STT / TTS| ANDROID_API

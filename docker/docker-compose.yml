@@ -101,45 +101,6 @@ services:
     profiles:
       - dev
 
-  # Nominatim Geocoding (Korea) - Self-hosted for no rate limits
-  nominatim:
-    image: mediagis/nominatim:4.4
-    container_name: navblind-nominatim
-    ports:
-      - "8088:8080"
-    environment:
-      PBF_URL: https://download.geofabrik.de/asia/south-korea-latest.osm.pbf
-      REPLICATION_URL: https://download.geofabrik.de/asia/south-korea-updates/
-      NOMINATIM_PASSWORD: navblind_nominatim
-      IMPORT_STYLE: full
-    volumes:
-      - nominatim_data:/var/lib/postgresql/14/main
-      - nominatim_flatnode:/nominatim/flatnode
-    shm_size: 1gb
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 600s
-    profiles:
-      - full
-
-  # Nominatim Data Import (run once, takes ~30min for Korea)
-  nominatim-import:
-    image: mediagis/nominatim:4.4
-    container_name: navblind-nominatim-import
-    environment:
-      PBF_URL: https://download.geofabrik.de/asia/south-korea-latest.osm.pbf
-      NOMINATIM_PASSWORD: navblind_nominatim
-      IMPORT_STYLE: full
-    volumes:
-      - nominatim_data:/var/lib/postgresql/14/main
-      - nominatim_flatnode:/nominatim/flatnode
-    shm_size: 1gb
-    profiles:
-      - setup
-
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
@@ -159,5 +120,3 @@ volumes:
   postgres_data:
   redis_data:
   osrm_data:
-  nominatim_data:
-  nominatim_flatnode:

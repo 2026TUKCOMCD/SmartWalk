@@ -58,7 +58,7 @@
 ║  │                                        Session Cache / Route Cache              │    ║
 ║  │                                        User Prefs Cache                         │    ║
 ║  │                 OsrmClient ──────────────────────────────────────────────────► │    ║
-║  │                 NominatimClient ────────────────────────────────────────────►  │    ║
+║  │                 KakaoLocalClient ───────────────────────────────────────────►  │    ║
 ║  └───────────────────────────────────────────────────────────────────────────────┘    ║
 ║                                                                                          ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════╝
@@ -69,8 +69,8 @@
 ╔══════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  【 외부 범위 】                                         ║
 ║                                                                                          ║
-║  Firebase Auth   │  OSRM Engine      │  Nominatim        │  OpenStreetMap               ║
-║  (Google 제공)   │  (self-hosted)    │  (self-hosted)    │  (공개 지도 데이터)           ║
+║  Firebase Auth   │  OSRM Engine      │  Kakao Local API  │  OpenStreetMap               ║
+║  (Google 제공)   │  (self-hosted)    │  (외부 REST)      │  (공개 지도 데이터)           ║
 ║                  │                   │                   │                              ║
 ║  ARCore          │  Android Speech   │  Android TTS API  │  Android                     ║
 ║  Geospatial API  │  Recognition API  │  (Google TTS)     │  FusedLocationProvider       ║
@@ -122,14 +122,14 @@ graph TB
 
         CACHE[("⚡ Redis 7, 세션 · 경로 · 설정 캐시, 진행 중 내비게이션 상태")]
 
-        ROUTING["🗺 경로 연동 클라이언트, OSRM 경로 계산, Nominatim 지오코딩 · POI 검색"]
+        ROUTING["🗺 외부 연동 클라이언트, OSRM 경로 계산, Kakao Local 지오코딩 · POI 검색"]
     end
 
     %% ─────────────── 외부 시스템 ───────────────
     subgraph EXT["🌐 외부 범위"]
         FIREBASE["🔑 Firebase Auth, 전화번호 SMS 인증"]
         OSRM_ENG["🛣 OSRM Engine, self-hosted, 보행자 경로 계산"]
-        NOM_ENG["📌 Nominatim, self-hosted, 지오코딩 · POI 검색"]
+        KAKAO_API["📌 Kakao Local API, 외부 REST, 지오코딩 · POI 검색"]
         OSM_DATA[("🗺 OpenStreetMap, 공개 지도 데이터")]
         ARCORE["📡 ARCore Geospatial API, Google VPS 고정밀 위치"]
         OS_VOICE["🎤 Android STT / TTS API, 음성 인식 · 음성 합성 엔진"]
@@ -165,9 +165,8 @@ graph TB
     SB -->|"SMS 인증"| FIREBASE
 
     ROUTING -->|"HTTP"| OSRM_ENG
-    ROUTING -->|"HTTP"| NOM_ENG
+    ROUTING -->|"HTTPS"| KAKAO_API
     OSM_DATA -.->|"지도 데이터"| OSRM_ENG
-    OSM_DATA -.->|"지도 데이터"| NOM_ENG
 
     DETECT -.->|"세션 기록"| REC
     LOC -.->|"GPX 위치 로그"| REC
@@ -222,10 +221,10 @@ graph TB
 | Nginx | Nginx | HTTPS 리버스 프록시, MJPEG 스트림 프록시 |
 | NavigationController | Spring Boot | 경로 탐색·재탐색·도로 스냅 REST API |
 | AuthController | Spring Boot | Firebase 토큰 검증, 세션 발급 |
-| DestinationController | Spring Boot | 저장 목적지 CRUD, OSM POI 검색 |
+| DestinationController | Spring Boot | 저장 목적지 CRUD, Kakao POI 검색 |
 | NavigationService | Spring Boot | OSRM 연동, 경로 계산 비즈니스 로직 |
 | OsrmClient | Spring Boot | OSRM /route, /nearest 호출 |
-| NominatimClient | Spring Boot | 지오코딩, POI 검색 |
+| KakaoLocalClient | Spring Boot | 지오코딩, POI 검색 |
 | PostgreSQL 16 | DB | User / Destination / Preference / NavigationSession / SmartGlasses 영구 저장 |
 | Redis 7 | Cache | Session·Route·UserPrefs·ActiveNav 캐시 |
 
@@ -235,7 +234,7 @@ graph TB
 |--------|--------|------|--------------|
 | Firebase Auth | Google | 전화번호 SMS 인증 | **외부** |
 | OSRM Engine | self-hosted | 보행자 경로 계산 | **수행 범위** (자체 운영) |
-| Nominatim | self-hosted | 지오코딩 / POI 검색 | **수행 범위** (자체 운영) |
+| Kakao Local API | Kakao | 지오코딩 / POI 검색 | **외부** |
 | OpenStreetMap | OSM Foundation | 지도 원본 데이터 | **외부** |
 | ARCore Geospatial API | Google | VPS 기반 고정밀 위치 | **외부** |
 | Android Speech Recognition | Google/Android | 한국어 STT | **외부** |
@@ -296,8 +295,7 @@ docker-compose.yml
 ├── backend        (Spring Boot, 포트 8080)
 ├── postgres       (포트 5432)
 ├── redis          (포트 6379)
-├── osrm           (포트 5000) ← OpenStreetMap 데이터 사전 로드
-└── nominatim      (포트 8088) ← OpenStreetMap 데이터 사전 로드
+└── osrm           (포트 5000) ← OpenStreetMap 데이터 사전 로드
 ```
 
 ---
