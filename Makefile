@@ -4,16 +4,15 @@
 backend:
 	cd backend && ./mvnw spring-boot:run
 
-# 개발: postgres + redis + OSRM 데모 프록시 (데이터 불필요)
+# 개발: postgres + redis + 실제 OSRM (setup 선행 필요)
 dev:
 	docker compose -f docker/docker-compose.yml --profile dev up -d
 
-# 풀스택 개발: postgres + redis + 실제 OSRM + nginx
-# 주의: docker-setup 먼저 실행 필요 (OSRM 데이터)
+# 풀스택 개발: dev + nginx
 full:
 	docker compose -f docker/docker-compose.yml --profile full up -d
 
-# OSRM 데이터 다운로드 + 전처리 (최초 1회, 약 20~40분)
+# OSRM 데이터 다운로드 + 전처리 (최초 1회, 약 20~40분, dev/full 공통 선행 작업)
 setup:
 	docker compose -f docker/docker-compose.yml --profile setup up osrm-download osrm-prepare
 

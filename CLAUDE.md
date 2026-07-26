@@ -109,9 +109,9 @@ pio device monitor               # Serial monitor
 
 ### Docker
 ```bash
-make dev          # 개발: postgres + redis + OSRM 데모 프록시
-make full         # 풀스택: 실제 OSRM 포함 (setup 선행 필요)
-make setup        # OSRM 데이터 준비 (최초 1회, 20~40분)
+make dev          # 개발: postgres + redis + 실제 OSRM (setup 선행 필요)
+make full         # 풀스택: dev + nginx
+make setup        # OSRM 데이터 준비 (최초 1회, 20~40분, dev/full 공통 선행 작업)
 make down         # 개발 환경 중지
 make logs         # 로그 스트림
 make ps           # 컨테이너 상태

@@ -38,10 +38,16 @@ KAKAO_NATIVE_APP_KEY=your_kakao_native_app_key_here
 ## 실행
 
 ### 1. 인프라 — PostgreSQL + Redis + OSRM (Kakao 지오코딩/검색은 인프라 불필요, 백엔드가 REST로 직접 호출)
+
+**최초 1회** — 한국 OSRM 데이터 다운로드 + 전처리 (20~40분 소요):
 ```bash
-npm run docker:dev     # postgres + redis + OSRM 데모 프록시(공개 서버 경유, 데이터 준비 불필요)
+npm run docker:setup
 ```
-> 실제 한국 전역 OSRM 데이터로 라우팅하려면 아래 [전체 OSRM 데이터 사용] 참고.
+
+**이후 매번**:
+```bash
+npm run docker:dev     # postgres + redis + 실제 OSRM(foot 프로파일, 로컬 데이터)
+```
 
 ### 2. 백엔드 서버
 ```bash
@@ -61,13 +67,9 @@ cd android && gradlew.bat assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-### 전체 OSRM 데이터 사용 (한국 전역 정밀 라우팅)
+### nginx 리버스 프록시까지 포함 (프로덕션 유사 환경 테스트 시)
 ```bash
-# 최초 1회 — OSRM 한국 데이터 다운로드 + 전처리 (20~40분)
-npm run docker:setup
-
-# 이후 매번 — 실제 OSRM + postgres + redis 기동
-npm run docker:full
+npm run docker:full    # docker:dev(postgres + redis + osrm) + nginx
 ```
 
 ### 기타

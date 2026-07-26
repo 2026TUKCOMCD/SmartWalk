@@ -77,27 +77,26 @@ PostgreSQL(`5432`), Redis(`6379`) 가 뜨는지 확인:
 npm run docker:logs
 ```
 
-### 전체 한국 OSRM 데이터 포함 (정밀 경로 탐색 기능 개발 시)
+### 경로 탐색 기능 개발 시 — 실제 한국 OSRM 데이터 필요
 
 > 장소 검색/지오코딩은 Kakao Local API(REST 호출)라 별도 인프라가 필요 없습니다 — 위 2단계에서 `KAKAO_API_KEY`만 설정하면 됩니다.
+> OSRM은 공개 데모 서버를 프록시하지 않습니다 — 공개 데모 서버(`router.project-osrm.org`)는 `/foot/`(보행자) 프로파일 요청을 받아도 실제로는 차량 속도 그래프를 반환해 부정확하므로, 로컬에 실제 한국 OSRM 데이터를 준비해 씁니다.
 
 **최초 1회** — 한국 OSM 데이터 다운로드 + OSRM 전처리 (20~40분 소요):
 ```bash
 npm run docker:setup
 ```
 
-**이후 매번** — 실제 OSRM + postgres + redis 기동:
+**이후 매번** — postgres + redis + 실제 OSRM(foot 프로파일) 기동:
 ```bash
-npm run docker:full
+npm run docker:dev
 ```
-
-> OSRM 데이터 준비 없이 경로 API 형태만 테스트하려면 `npm run docker:dev` (공개 OSRM 데모 서버 프록시 사용)
 
 | 커맨드 | 포함 서비스 | 용도 |
 |--------|------------|------|
-| `docker:up` | postgres, redis | 기본 백엔드 개발 |
-| `docker:dev` | + osrm-demo(프록시) | 경로 API 형태 확인 |
-| `docker:full` | + 실제 osrm, nginx | 풀스택 개발 |
+| `docker:up` | postgres, redis | 경로 탐색 없이 기본 백엔드 개발 |
+| `docker:dev` | + 실제 osrm | 일반 개발 (`docker:setup` 선행 필요) |
+| `docker:full` | + nginx | 프로덕션 유사 환경 테스트 |
 
 ---
 
