@@ -1,5 +1,6 @@
 package com.smartwalker.presentation.navigation
 
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.smartwalker.domain.model.DetectedObject
@@ -59,6 +60,7 @@ class DetectionViewModel @Inject constructor(
         observeStreamState()
         observeFrameReception()
         observeLogExpiry()
+        observePreviewFrame()
     }
 
     private fun observeDetections() {
@@ -96,6 +98,15 @@ class DetectionViewModel @Inject constructor(
         viewModelScope.launch {
             obstacleAlertService.isRunning.collect { running ->
                 _uiState.update { it.copy(isStreaming = running) }
+            }
+        }
+    }
+
+    /** 안내 화면 영상 미리보기용 프레임 반영 (감지 박스 오버레이와 함께 표시) */
+    private fun observePreviewFrame() {
+        viewModelScope.launch {
+            obstacleAlertService.previewFrame.collect { frame ->
+                _uiState.update { it.copy(previewFrame = frame) }
             }
         }
     }
@@ -179,7 +190,9 @@ data class DetectionUiState(
     /** 영상 소스 종류 (휴대폰 카메라 / 스마트글래스) */
     val cameraSource: CameraSourceType = CameraSourceType.ESP32_GLASS,
     /** 최근 감지 로그 (최신 항목이 앞에 위치, 최대 30개) */
-    val detectionLog: List<DetectionLogEntry> = emptyList()
+    val detectionLog: List<DetectionLogEntry> = emptyList(),
+    /** 안내 화면 영상 미리보기용 최신 프레임 (감지 박스 오버레이와 함께 표시) */
+    val previewFrame: Bitmap? = null
 )
 
 /** 감지 로그 한 줄 */

@@ -59,6 +59,13 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
+
+        // Kakao Maps SDK 앱 키 (백엔드 KAKAO_API_KEY와는 별개 — Kakao Developers 콘솔의
+        // Native App Key. Android 플랫폼에 패키지명+키해시 등록이 별도로 필요하다.
+        buildConfigField(
+            "String", "KAKAO_NATIVE_APP_KEY",
+            "\"${env.getProperty("KAKAO_NATIVE_APP_KEY", "")}\""
+        )
     }
 
     buildTypes {
@@ -147,6 +154,9 @@ dependencies {
 
     // Google Play Services - Location
     implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    // Kakao Maps SDK (지도 표시 — 현재 위치 마커 + 경로 폴리라인)
+    implementation("com.kakao.maps.open:android:2.13.1")
 
     // CameraX (스마트폰 내장 카메라 — ESP32-CAM 대체 테스트용)
     implementation("androidx.camera:camera-core:1.3.1")

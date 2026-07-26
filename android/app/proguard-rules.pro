@@ -20,3 +20,7 @@
 
 # Keep ARCore
 -keep class com.google.ar.** { *; }
+
+# Keep Kakao Maps SDK
+-keep class com.kakao.vectormap.** { *; }
+-keep interface com.kakao.vectormap.** { *; }

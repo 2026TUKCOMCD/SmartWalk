@@ -11,6 +11,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Kakao Maps SDK (지도 표시)
+        maven { url = uri("https://devrepo.kakao.com/nexus/repository/kakaomap-releases/") }
     }
 }
 

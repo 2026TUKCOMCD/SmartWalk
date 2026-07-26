@@ -1,5 +1,6 @@
 package com.smartwalker.presentation.navigation
 
+import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -8,6 +9,8 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,7 +29,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -40,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.smartwalker.domain.model.DetectedObject
 import com.smartwalker.domain.model.SearchResult
 import com.smartwalker.domain.model.TurnModifier
 import com.smartwalker.service.streaming.CameraSourceType
@@ -419,6 +429,34 @@ private fun NavigatingView(
                 .padding(bottom = 8.dp)
         )
 
+        // 실시간 영상 미리보기(감지 박스 오버레이) + 지도(현재 위치·경로) — 시연/동반자용
+        // 시각 정보이므로 TalkBack 에서 완전히 숨김(clearAndSetSemantics)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp)
+                .padding(bottom = 8.dp)
+                .clearAndSetSemantics {},
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CameraPreviewWithOverlay(
+                frame = detectionState.previewFrame,
+                detections = detectionState.detectedObjects,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(8.dp))
+            )
+            KakaoMapView(
+                currentPosition = uiState.currentPosition,
+                route = uiState.route,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(8.dp))
+            )
+        }
+
         // 디버그 패널 — TalkBack 에서 완전히 숨김
         Card(
             modifier = Modifier
@@ -612,6 +650,57 @@ private fun NavigatingView(
 }
 
 /**
+ * 실시간 영상 미리보기 + YOLO 감지 박스 오버레이.
+ *
+ * [ContentScale.FillBounds]로 늘려 그려 가로세로 스케일 비율을 독립적으로 계산할 수 있게 하고
+ * (Crop 등 비율 유지 스케일은 오프셋 계산이 더 복잡해짐), 그 비율 그대로 바운딩 박스를 그린다.
+ */
+@Composable
+private fun CameraPreviewWithOverlay(
+    frame: Bitmap?,
+    detections: List<DetectedObject>,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.background(Color.Black)) {
+        if (frame != null) {
+            Image(
+                bitmap = frame.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.fillMaxSize()
+            )
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val scaleX = size.width / frame.width
+                val scaleY = size.height / frame.height
+                detections.forEach { obj ->
+                    val box = obj.boundingBox
+                    drawRect(
+                        color = dangerLevelColor(obj.dangerLevel),
+                        topLeft = Offset(box.left * scaleX, box.top * scaleY),
+                        size = Size(box.width() * scaleX, box.height() * scaleY),
+                        style = Stroke(width = 2.dp.toPx())
+                    )
+                }
+            }
+        } else {
+            Text(
+                text = "영상 없음",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+    }
+}
+
+/** 위험도(0-1)를 경고 색상으로 변환. 감지 로그·영상 오버레이가 공유한다. */
+private fun dangerLevelColor(level: Float): Color = when {
+    level >= 0.8f -> Color(0xFFEF5350)
+    level >= 0.5f -> Color(0xFFFF9800)
+    else -> Color(0xFF81C784)
+}
+
+/**
  * 현재 영상 프레임을 어디서 가져오는지(휴대폰 내장 카메라 / ESP32 스마트글래스)와
  * 프레임이 실제로 들어오고 있는지를 사용자에게 표시하는 배지.
  *
@@ -751,11 +840,7 @@ private fun DetectionLogPanel(log: List<DetectionLogEntry>, modifier: Modifier =
 
 @Composable
 private fun DetectionLogRow(entry: DetectionLogEntry) {
-    val dangerColor = when {
-        entry.dangerLevel >= 0.8f -> Color(0xFFEF5350)
-        entry.dangerLevel >= 0.5f -> Color(0xFFFF9800)
-        else -> Color(0xFF81C784)
-    }
+    val dangerColor = dangerLevelColor(entry.dangerLevel)
     Row(
         modifier = Modifier
             .fillMaxWidth()

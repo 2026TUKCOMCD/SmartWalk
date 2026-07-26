@@ -1,6 +1,7 @@
 package com.smartwalker.service.voice
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -75,6 +76,7 @@ class ObstacleAlertService @Inject constructor(
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var detectionJob: Job? = null
     private var frameMonitorJob: Job? = null
+    private var previewFrameJob: Job? = null
 
     /** 클래스명별 마지막 경보 시각 (쿨다운 추적) */
     private val lastAlertTime = mutableMapOf<String, Long>()
@@ -111,6 +113,14 @@ class ObstacleAlertService @Inject constructor(
      */
     val lastFrameTimestamp: StateFlow<Long> = _lastFrameTimestamp.asStateFlow()
 
+    private val _previewFrame = MutableStateFlow<Bitmap?>(null)
+
+    /**
+     * 안내 화면 영상 미리보기용 프레임. YOLO 추론(500ms 간격)과는 별개로
+     * [PREVIEW_INTERVAL_MS] 간격으로 샘플링해 화면 표시 부담을 낮춘다.
+     */
+    val previewFrame: StateFlow<Bitmap?> = _previewFrame.asStateFlow()
+
     /**
      * 장애물 감지 파이프라인을 시작합니다.
      *
@@ -132,6 +142,15 @@ class ObstacleAlertService @Inject constructor(
             cameraSource.frames.collect {
                 _lastFrameTimestamp.value = System.currentTimeMillis()
             }
+        }
+
+        // UI 미리보기: YOLO 추론용 500ms 샘플링과 별개로 더 촘촘히 샘플링해 화면에 보여준다.
+        previewFrameJob = scope.launch {
+            cameraSource.frames
+                .sample(PREVIEW_INTERVAL_MS)
+                .collect { bitmap ->
+                    _previewFrame.value = bitmap
+                }
         }
 
         detectionJob = scope.launch {
@@ -170,7 +189,10 @@ class ObstacleAlertService @Inject constructor(
         detectionJob = null
         frameMonitorJob?.cancel()
         frameMonitorJob = null
+        previewFrameJob?.cancel()
+        previewFrameJob = null
         _lastFrameTimestamp.value = 0L
+        _previewFrame.value = null
         cameraSource.stop()
         objectTracker.reset()
         lastAlertTime.clear()
@@ -302,6 +324,7 @@ class ObstacleAlertService @Inject constructor(
     companion object {
         private const val TAG = "ObstacleAlertService"
         private const val DETECTION_INTERVAL_MS = 500L
+        private const val PREVIEW_INTERVAL_MS = 150L  // 안내 화면 영상 미리보기 샘플링 간격
         // HazardPrioritizer 점수 임계값. 점수 = dangerLevel×0.6 + collisionRisk×0.4 이고
         // dangerLevel 상한이 1.0이라 danger만으로는 최대 0.6. 0.4는 "코앞+정중앙"만 통과해
         // 전방 5m 보행자도 컷됐다. 0.28로 낮춰 전방 중앙 ~5m 장애물도 경보하도록 한다.
